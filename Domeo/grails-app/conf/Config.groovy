@@ -8,7 +8,7 @@ def appName = Metadata.current.getApplicationName();
 // config files can either be Java properties files or ConfigSlurper scripts
 
 // See: http://stackoverflow.com/questions/3807267/grails-external-configuration-grails-config-locations-absolute-path-file
-grails.config.locations = ["classpath:${appName}-config.properties", "file:./${appName}-config.properties"]
+grails.config.locations = ["classpath:${appName}-config.properties", "file:/etc/${appName}-config.properties"]
 
 grails.project.groupId = appName // change this to alter the default package name and Maven publishing destination
 grails.mime.file.extensions = true // enables the parsing of file extensions from URLs into the request format
