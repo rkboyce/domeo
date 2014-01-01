@@ -41,10 +41,14 @@ import org.mindinformatics.domeo.grails.plugins.utils.MiscUtils
 class NifAnnotatorJsonService {
 	static transactional = false;
     
-	static final String SERVICE_URL = 'http://nif-services.neuinfo.org/servicesv1/v1/annotate/entities' 
-	static final String CONTENT = 'content'
-	static final String ONTOLOGY_IN = 'includeCat'
-	static final String ONTOLOGY_OUT = 'excludeCat'
+	final String SERVICE_URL = 'http://beta.neuinfo.org/services/v1/annotate/entities' //'http://nif-services.neuinfo.org/servicesv1/v1/annotate/entities' 
+	final String CONTENT = 'content'
+	final String ONTOLOGY_IN = 'includeCat'
+	final String ONTOLOGY_OUT = 'excludeCat'
+	final String LONGEST_ONLY = 'longestOnly'
+	final String INCLUDE_ABBREV = 'includeAbbrev'
+	final String INCLUDE_ACRONYM = 'includeAcronym'
+	final String INCLUDE_NUMBERS = 'includeNumbers'
 	
 	def grailsApplication;
     def domeoConfigAccessService;
@@ -74,11 +78,11 @@ class NifAnnotatorJsonService {
 	 * @return	The results in JSON format
 	 * @throws AnnotatorException
 	 */
-	public JSONObject annotate(String url, String content, String include, String exclude) throws ConnectorHttpResponseException {
-		log.info("Nif annotate(" + url + "," + content + "," + include + "," + exclude + ")"); 
+	public JSONObject annotate(String url, String content, String include, String exclude, String longestOnly, String includeAbbrev, String includeAcronym, String includeNumbers) throws ConnectorHttpResponseException {
+		log.info("Nif annotate(" + url + "," + content + "," + include + "," + exclude + "," + longestOnly + "," + includeAbbrev + "," + includeAcronym + "," + includeAcronym + ")"); 
 		NifAnnotatorRequestParameters params = new NifAnnotatorRequestParameters();
 		params.content = content;
-		ArrayList<NifAnnotationItem> annotations = callService(composeUrl(content, "", ""));
+		ArrayList<NifAnnotationItem> annotations = callService(composeUrl(content, include, exclude, longestOnly, includeAbbrev, includeAcronym, includeAcronym));
 		return nifAnnotatorResultsConversionService.convert(url, annotations, params);
 	}
 	
@@ -89,13 +93,19 @@ class NifAnnotatorJsonService {
 	 * @param exclude	The list of categories to exclude (comma separated)
 	 * @return	The URL for the service call
 	 */
-	private String composeUrl(String content, String include, String exclude) {
+	private String composeUrl(String content, String include, String exclude, String longestOnly, String includeAbbrev, String includeAcronym, String includeNumbers) {
 		def includes = parseCommaSeparatedList(include);
 		def excludes = parseCommaSeparatedList(exclude);
+		
 		def includesText = createParametersList(ONTOLOGY_IN, includes);
 		def excludesText = createParametersList(ONTOLOGY_OUT, excludes);
-		
-		return SERVICE_URL + '?content=' + java.net.URLEncoder.encode(content) + includesText + excludesText;
+
+		def longestOnlyText = createParameterItem(LONGEST_ONLY, longestOnly);
+		def includeAbbrevText = createParameterItem(INCLUDE_ABBREV, includeAbbrev);
+		def includeAcronymText = createParameterItem(INCLUDE_ACRONYM, includeAcronym);
+		def includeNumbersText = createParameterItem(INCLUDE_NUMBERS, includeNumbers);
+
+		return SERVICE_URL + '?content=' + java.net.URLEncoder.encode(content)  + longestOnlyText + includeAbbrevText + includeAcronymText + includeNumbersText;
 	}
 	
 	/**
@@ -105,9 +115,14 @@ class NifAnnotatorJsonService {
 	 */
 	private def parseCommaSeparatedList(String list) {
 		def items = [];
+		if(list.trim().length()==0) return items;
+		if(list.indexOf(",")<=0) {
+			items.add(list)
+			return items;
+		}
 		StringTokenizer st = new StringTokenizer(list,",");
 		while(st.hasMoreTokens()) {
-			items <- st.nextToken();
+			items.add(st.nextToken());
 		}
 		return items;
 	}
@@ -121,9 +136,14 @@ class NifAnnotatorJsonService {
 	private String createParametersList(String name, def values) {
 		StringBuffer sb = new StringBuffer();
 		values.each { value ->
-			sb.append("&").append(name).append("=").append(value);
+			sb.append("&").append(name).append("=").append(java.net.URLEncoder.encode(value));
 		}
-		java.net.URLEncoder.encode(sb.toString(), "UTF-8");
+		sb.toString();
+	}
+	
+	private String createParameterItem(String name, String value) {
+		if(value==null) return "";
+		"&" + name + "=" + java.net.URLEncoder.encode(value);
 	}
 	
 	/**
@@ -150,7 +170,7 @@ class NifAnnotatorJsonService {
                     log.info("response status: ${resp.statusLine}");
                     log.info("The response contenType is $resp.contentType");
                     log.info("XML was ${xml} " + xml.text());
-					
+
 					//def annotations = new XmlParser().parse(xml);
 					def annotations = xml.childNodes();
 					annotations.each { annotation ->
@@ -159,11 +179,13 @@ class NifAnnotatorJsonService {
 						item.match = annotation.text();
 						def attributes = annotation.attributes();
 						//println attributes.get("start");
+
 						item.start = new Integer(attributes.get("start"));
 						//println attributes.get("end");
 						item.end = new Integer(attributes.get("end"));
 						def entity = annotation.childNodes().next();
 						//println entity.text();
+
 						def entityAttributes = entity.attributes();
 						//println entityAttributes.get("category");
 						item.category = entityAttributes.get("category");

@@ -2,6 +2,9 @@ package org.mindinformatics.grails.domeo.persistence
 
 import grails.converters.JSON
 
+import java.util.regex.Matcher
+import java.util.regex.Pattern
+
 import org.codehaus.groovy.grails.web.json.JSONArray
 import org.codehaus.groovy.grails.web.json.JSONObject
 import org.mindinformatics.domeo.persistence.ElasticSearchWrapper
@@ -82,9 +85,28 @@ class AjaxPersistenceController {
 		return;
 	}
 	
-	def annotationSets = {
+	def browseAnnotationSets = {
 		def user = userProfile();
-        def documentUrl = params.documentUrl;
+		
+		def documentUrl = params.documentUrl;
+		def permissionPublic = params.permissionPublic;
+		def permissionPrivate = params.permissionPrivate;
+		int paginationOffset = (params.paginationOffset?Integer.parseInt(params.paginationOffset):0);
+		int paginationRange = (params.paginationRange?Integer.parseInt(params.paginationRange):10);
+		boolean publicData = (params.publicData?Boolean.parseBoolean(params.publicData):true);
+		boolean groupsData = (params.groupsData?Boolean.parseBoolean(params.groupsData):true);
+		boolean privateData = (params.privateData?Boolean.parseBoolean(params.privateData):true);
+		def groupsIds = params.groupsIds;
+		
+//		println '-0-- ' + documentUrl;
+//		println '-1-- ' + permissionPublic;
+//		println '-2-- ' + permissionPrivate;
+//		println '-3-- ' + paginationOffset;
+//		println '-4-- ' + paginationRange;
+//		println '-5-- ' + publicData;
+//		println '-6-- ' + groupsData;
+//		println '-7-- ' + privateData;
+//		println '-8-- ' + groupsIds;
 		
 		try {
 			User latestContributor = null;
@@ -92,20 +114,23 @@ class AjaxPersistenceController {
 			
 			ArrayList<AnnotationListItemWrapper> annotationListItemWrappers = new ArrayList<AnnotationListItemWrapper>();
 			List<LastAnnotationSetIndex> lastAnnotationSetIndexes;
-            
-            if(!documentUrl) lastAnnotationSetIndexes = LastAnnotationSetIndex.findAll('from LastAnnotationSetIndex as b order by b.lastUpdated desc')
-            else lastAnnotationSetIndexes = LastAnnotationSetIndex.findAll('from LastAnnotationSetIndex as b where b.annotatesUrl=\'' + documentUrl + '\' order by b.lastUpdated desc')
-            
+			
+			if(!documentUrl) lastAnnotationSetIndexes = LastAnnotationSetIndex.findAll('from LastAnnotationSetIndex as b where b.isDeleted=0 order by b.lastUpdated desc')
+			else lastAnnotationSetIndexes = LastAnnotationSetIndex.findAll('from LastAnnotationSetIndex as b where b.annotatesUrl=\'' + documentUrl + '\' order by b.lastUpdated desc')
+						
+			int globalCounter = 0;
+			int allowedCounter = 0;
+//			println 'total: ' + lastAnnotationSetIndexes.size();
 			for(LastAnnotationSetIndex lastAnnotationSetIndex: lastAnnotationSetIndexes) {
 				if(latestContribution==null || lastAnnotationSetIndex.lastVersion.createdOn.after(latestContribution)) {
 					latestContribution = lastAnnotationSetIndex.lastVersion.createdOn;
 					latestContributor = lastAnnotationSetIndex.lastVersion.createdBy;
 				}
-                
-				if(annotationPermissionService.isPermissionGranted(user, lastAnnotationSetIndex.lastVersion)) {
+				
+				if(annotationPermissionService.isPermissionGranted(user, lastAnnotationSetIndex.lastVersion, privateData, groupsData, groupsIds, publicData)) {
+//					println 'hello 1 ' + globalCounter;
 					AnnotationListItemWrapper annotationListItemWrapper = new AnnotationListItemWrapper(lastAnnotationSetIndex: lastAnnotationSetIndex);
-					annotationListItemWrappers.add(annotationListItemWrapper);
-                 
+//					println 'hello 2';
 					List<String> permissions = annotationPermissionService.getAnnotationSetPermissions(user.id, lastAnnotationSetIndex.lastVersion);
 					if (permissions.get(0)==IPermissionTypes.publicAccess) {
 						annotationListItemWrapper.permissionType = IPermissionTypes.publicAccess;
@@ -115,15 +140,227 @@ class AjaxPersistenceController {
 						annotationListItemWrapper.permissionType = IPermissionTypes.privateAccess;
 					}
 					annotationListItemWrapper.isLocked = annotationPermissionService.isLocked(lastAnnotationSetIndex.lastVersion);
+
+					if(globalCounter>=paginationOffset && globalCounter<(paginationOffset+paginationRange)) {
+						annotationListItemWrappers.add(annotationListItemWrapper);
+						allowedCounter++;
+					}
+
+					globalCounter++;
 				}
 			}
 			
-			AnnotationListResponse theResponse = new AnnotationListResponse(latestContributor: latestContributor,
-				latestContribution: latestContribution, annotationListItemWrappers: annotationListItemWrappers, totalResponses: annotationListItemWrappers.size());
+			AnnotationListResponse theResponse = new AnnotationListResponse(paginationOffset: paginationOffset, paginationRange: paginationRange, latestContributor: latestContributor,
+				latestContribution: latestContribution, annotationListItemWrappers: annotationListItemWrappers, totalResponses: globalCounter);
 			JSON.use("deep")
 			render (theResponse as JSON);
 		} catch(Exception e) {
 			trackException(user.id, "", "FAILURE: Retrieval of the list of existing annotation sets failed " + e.getMessage());
+		}
+	}
+	
+	def annotationSets = {
+		def user = userProfile();
+		
+		
+        def documentUrl = params.documentUrl;
+		def permissionPublic = params.permissionPublic;
+		def permissionPrivate = params.permissionPrivate;
+		int paginationOffset = (params.paginationOffset?Integer.parseInt(params.paginationOffset):0);
+		int paginationRange = (params.paginationRange?Integer.parseInt(params.paginationRange):10); 
+		boolean publicData = (params.publicData?Boolean.parseBoolean(params.publicData):true);
+		boolean groupsData = (params.groupsData?Boolean.parseBoolean(params.groupsData):true);
+		boolean privateData = (params.privateData?Boolean.parseBoolean(params.privateData):true);
+		def groupsIds = params.groupsIds;
+		
+//		println '-0-- ' + documentUrl;
+//		println '-1-- ' + permissionPublic;
+//		println '-2-- ' + permissionPrivate;
+//		println '-3-- ' + paginationOffset;
+//		println '-4-- ' + paginationRange;
+//		println '-5-- ' + publicData;
+//		println '-6-- ' + groupsData;
+//		println '-7-- ' + privateData;	
+//		println '-8-- ' + groupsIds;
+		
+		try {
+			User latestContributor = null;
+			Date latestContribution = null;
+			
+			ArrayList<AnnotationListItemWrapper> annotationListItemWrappers = new ArrayList<AnnotationListItemWrapper>();
+			List<LastAnnotationSetIndex> lastAnnotationSetIndexes;
+            
+            if(!documentUrl) lastAnnotationSetIndexes = LastAnnotationSetIndex.findAll('from LastAnnotationSetIndex as b where b.isDeleted=0 order by b.lastUpdated desc')
+            else lastAnnotationSetIndexes = LastAnnotationSetIndex.findAll('from LastAnnotationSetIndex as b where b.annotatesUrl=\'' + documentUrl + '\' order by b.lastUpdated desc')
+            			
+			int globalCounter = 0;
+			int allowedCounter = 0;
+//			println 'total: ' + lastAnnotationSetIndexes.size(); 
+			for(LastAnnotationSetIndex lastAnnotationSetIndex: lastAnnotationSetIndexes) {
+				if(latestContribution==null || lastAnnotationSetIndex.lastVersion.createdOn.after(latestContribution)) {
+					latestContribution = lastAnnotationSetIndex.lastVersion.createdOn;
+					latestContributor = lastAnnotationSetIndex.lastVersion.createdBy;
+				}
+				
+				if(annotationPermissionService.isPermissionGranted(user, lastAnnotationSetIndex.lastVersion, privateData, groupsData, groupsIds, publicData)) {
+//					println 'hello 1 ' + globalCounter;
+					AnnotationListItemWrapper annotationListItemWrapper = new AnnotationListItemWrapper(lastAnnotationSetIndex: lastAnnotationSetIndex);
+//					println 'hello 2';
+					List<String> permissions = annotationPermissionService.getAnnotationSetPermissions(user.id, lastAnnotationSetIndex.lastVersion);
+					if (permissions.get(0)==IPermissionTypes.publicAccess) {
+						annotationListItemWrapper.permissionType = IPermissionTypes.publicAccess;
+					} else if (permissions.get(0)==IPermissionTypes.groupsAccess) {
+						annotationListItemWrapper.permissionType = IPermissionTypes.groupsAccess;
+					} else {
+						annotationListItemWrapper.permissionType = IPermissionTypes.privateAccess;
+					}
+					annotationListItemWrapper.isLocked = annotationPermissionService.isLocked(lastAnnotationSetIndex.lastVersion);
+
+					if(globalCounter>=paginationOffset && globalCounter<(paginationOffset+paginationRange)) {
+						annotationListItemWrappers.add(annotationListItemWrapper);
+						allowedCounter++;
+					}
+
+					globalCounter++;
+				} 
+			}
+			
+			AnnotationListResponse theResponse = new AnnotationListResponse(paginationOffset: paginationOffset, paginationRange: paginationRange, latestContributor: latestContributor,
+				latestContribution: latestContribution, annotationListItemWrappers: annotationListItemWrappers, totalResponses: globalCounter);
+			JSON.use("deep")
+			render (theResponse as JSON);
+		} catch(Exception e) {
+			trackException(user.id, "", "FAILURE: Retrieval of the list of existing annotation sets failed " + e.getMessage());
+		}
+	}
+	
+	def searchAnnotationSets = {
+		def user = userProfile();
+		
+		println '-------------------------------------'
+		println ' search (0) on: ' +  request.JSON.query
+		println '-------------------------------------'
+		def strings = [];
+		Matcher matcher = Pattern.compile(/"[^\\"]*(\\"[^\\"]*)*"/).matcher(request.JSON.query)
+		matcher.each {
+			def hit = it;
+			println 'match: ' + it
+			strings.add(it[0]);
+		}
+		def queryterms = []
+		def querystring = request.JSON.query;
+		strings.each { hit ->
+			println 'hit: ' + hit
+			queryterms.add(hit.replaceAll("\"",""));
+			println 'before query ' + querystring;
+			querystring = querystring.replaceAll(hit, "");
+			println 'after query ' + querystring
+		}
+		def ress = querystring.split();
+		ress.each { res ->
+			println 'more ' + res; 
+			queryterms.add(res);
+		}
+		
+		println 'queryterms ' + queryterms
+		
+		int paginationOffset = (request.JSON.paginationOffset?request.JSON.paginationOffset:0);
+		int paginationRange = (request.JSON.paginationRange?request.JSON.paginationRange:2);
+		
+		List<AnnotationSetIndex> annotationListItemWrappers = new ArrayList<AnnotationSetIndex>();
+		if(request.JSON) {
+			int globalCounter = 0;
+			int allowedCounter = 0;
+			
+			def res;
+			//println "Query " + request.JSON.query
+			//println "Public " + request.JSON.permissionsPublic
+			//println "Private " + request.JSON.permissionsPrivate
+			
+			//println "Human " + request.JSON.agentHuman
+			//println "Software " + request.JSON.agentSoftware
+			
+			def agent;
+			if(request.JSON.agentHuman==true && request.JSON.agentSoftware != true) 
+				agent = 'foafx:Person'
+			else if(request.JSON.agentHuman!=true && request.JSON.agentSoftware == true) 
+				agent = 'foafx:Software'
+				
+			String[] newparsed = null;
+			if(agent==null) newparsed = new String[queryterms.size()];
+			else newparsed = new String[queryterms.size()+1];
+				
+			String[] newvalues = null;
+			if(agent==null) newvalues = new String[queryterms.size()];
+			else newvalues = new String[queryterms.size()+1];
+			
+			for(i in 0..queryterms.size()-1) {
+				newvalues[i] = queryterms[i]
+			}
+			if(!agent==null) newvalues[newvalues.length-1] =  agent;
+			
+			String[] newfields = null
+			if(agent==null) newfields = new String[queryterms.size()];
+			else newfields = new String[queryterms.size()+1];
+			for(i in 0..queryterms.size()-1) {
+				newfields[i] = '_all'
+				newparsed[i] = 'match_phrase'
+			}
+			if(!agent==null) {
+				newvalues[newfields.length-1] =  'pav_!DOMEO_NS!_createdBy.@type';
+				newparsed[newfields.length-1] = 'term'
+			}
+			
+			println '------------- ' + request.JSON.groupsIds;
+			boolean publicData = request.JSON.permissionsPublic; // (request.JSON.permissionsPublic?request.JSON.permissionsPublic:true);
+			boolean groupsData = request.JSON.permissionsGroups; // (request.JSON.permissionsGroups?request.JSON.permissionsGroups:true);
+			boolean privateData = request.JSON.permissionsPrivate // (request.JSON.permissionsPrivate?request.JSON.permissionsPrivate:true);
+			def groupsIds = request.JSON.groupsIds;
+			
+				
+			if(request.JSON.query) {
+				res = annotationSearchService.searchMultiple(newfields, newvalues, newparsed,
+					request.JSON.permissionsPublic==true, (request.JSON.permissionsPrivate==true)?"urn:person:uuid:"+userProfileId():null, groupsIds);
+				
+				println "1- " + JSON.parse(res)
+				println "1- " + JSON.parse(res).hits.hits;
+				
+				JSONObject r = JSON.parse(res);
+				def hits = r.hits.hits;
+				hits.each { hit ->
+					println 'hit: ' + hit._id
+					def annotationSetIndex = AnnotationSetIndex.findByMongoUuid(hit._id);				
+					if(annotationSetIndex!=null) {
+						println 'checking: ' + annotationSetIndex.individualUri
+						if(annotationPermissionService.isPermissionGranted(user, annotationSetIndex, privateData, groupsData, groupsIds, publicData)) {
+							println 'granted: ' + annotationSetIndex.individualUri
+							AnnotationSetItemWrapper annotationListItemWrapper = new AnnotationSetItemWrapper(annotationSetIndex: annotationSetIndex);
+							
+							if(globalCounter>=paginationOffset && globalCounter<(paginationOffset+paginationRange)) {
+								annotationListItemWrappers.add(annotationListItemWrapper);
+								allowedCounter++;
+							}
+						 
+							List<String> permissions = annotationPermissionService.getAnnotationSetPermissions(user.id, annotationSetIndex);
+							if (permissions.get(0)==IPermissionTypes.publicAccess) {
+								annotationListItemWrapper.permissionType = IPermissionTypes.publicAccess;
+							} else if (permissions.get(0)==IPermissionTypes.groupsAccess) {
+								annotationListItemWrapper.permissionType = IPermissionTypes.groupsAccess;
+							} else {
+								annotationListItemWrapper.permissionType = IPermissionTypes.privateAccess;
+							}
+							annotationListItemWrapper.isLocked = annotationPermissionService.isLocked(annotationSetIndex);
+							
+							globalCounter++
+						}
+					}
+				}			
+			}
+			AnnotationListResponse theResponse = new AnnotationListResponse(
+				paginationOffset: paginationOffset, paginationRange: paginationRange,
+				annotationListItemWrappers: annotationListItemWrappers, totalResponses: globalCounter);
+			JSON.use("deep")
+			render (theResponse as JSON);
 		}
 	}
 	
@@ -278,13 +515,70 @@ class AjaxPersistenceController {
 					jsonSet.put("permissions", set[IOntology.permissions]);
 					responseToSets.put("set", jsonSet);
 					
-					def annotationsMap = [:];
-					def commentsMap = [:];
-					def commentsCounter = [:];
-					def jsonItems = new JSONArray();
+					// All annotations
 					def annotations = set[IOntology.annotations];
+					
+					// Comments extraction
+					def commentsMap = [:];
+					def annotatedByMap = [:];
 					for(def i=0; i<annotations.length(); i++) {
 						JSONObject annotation = new JSONObject();
+						annotation.put("id", annotations[i][IOntology.generalId]);
+
+						// Extract types
+						def typesSet = [] as Set;
+						if(annotations[i][IOntology.generalType] instanceof  org.codehaus.groovy.grails.web.json.JSONArray) {
+							for(def j=0; j<annotations[i][IOntology.generalType].length(); j++) {
+								typesSet.add(annotations[i][IOntology.generalType][j]);
+								if(!annotations[i][IOntology.generalType][j].equals("ao:PostIt")) {
+									annotation.put("type", annotations[i][IOntology.generalType][j]);
+									annotation.put("label", annotations[i][IOntology.generalLabel]);
+								}
+							}
+						} else {
+							annotation.put("type", annotations[i][IOntology.generalType]);
+							annotation.put("label", annotations[i][IOntology.generalLabel]);
+							typesSet.add(annotations[i][IOntology.generalType]);
+						}
+						
+						if(typesSet.contains(IOntology.annotationComment)) {
+							// General
+							annotation.put("createdOn", annotations[i][IOntology.pavCreatedOn]);
+							//annotation.put("createdBy", agentsCache.get(annotations[i][IOntology.pavCreatedBy]['@id']));
+							annotation.put("createdBy", agentsCache.get(annotations[i][IOntology.pavCreatedBy]));
+							//annotation.put("createdByName", agentsCache.get(annotations[i][IOntology.pavCreatedBy]['@id'])['foafx:name']);
+							annotation.put("createdByName", agentsCache.get(annotations[i][IOntology.pavCreatedBy])['foafx:name']);
+						
+							//def up = agentsCache.get(annotations[i][IOntology.pavCreatedBy]['@id'])['@id'].toString();
+							def up = agentsCache.get(annotations[i][IOntology.pavCreatedBy])['@id'].toString();
+							annotation.put("createdById", up.replaceAll(~/urn:person:uuid:/, ""));
+							//annotation.put("createdByUri", agentsCache.get(annotations[i][IOntology.pavCreatedBy]['@id'])['@id']);
+							annotation.put("createdByUri", agentsCache.get(annotations[i][IOntology.pavCreatedBy])['@id']);
+							annotation.put("lastSavedOn", annotations[i][IOntology.pavLastSavedOn]);
+							annotation.put("version", annotations[i][IOntology.pavVersionNumber]);
+							
+							// Comment dependent
+							annotation.put("content", annotations[i][IOntology.content]);
+							
+							if(annotations[i][IOntology.hasTarget][0][IOntology.selector]!=null && annotations[i][IOntology.hasTarget][0][IOntology.selector][IOntology.generalType] == IOntology.selectorAnnotation) {
+								println 'Comment ' +  annotations[i][IOntology.generalId] + ' on ' + annotations[i][IOntology.hasTarget][0][IOntology.selector]['ao:annotation']
+								commentsMap.put(annotations[i][IOntology.generalId], annotations[i][IOntology.hasTarget][0][IOntology.selector]['ao:annotation']);
+								annotatedByMap.put(annotations[i][IOntology.hasTarget][0][IOntology.selector]['ao:annotation'], annotations[i]);
+							}
+						}
+					}
+					
+					
+					def annotationsMap = [:];
+				
+					def commentsCounter = [:];
+					def jsonItems = new JSONArray();
+					
+					for(def i=0; i<annotations.length(); i++) {
+						JSONObject annotation = new JSONObject();
+						def typesSet = extractBasicAnnotationProperties(agentsCache, annotation, annotations[i]);
+						
+						/*
 						annotation.put("id", annotations[i][IOntology.generalId]);
 
 						// Extract types
@@ -317,6 +611,7 @@ class AjaxPersistenceController {
 						annotation.put("createdByUri", agentsCache.get(annotations[i][IOntology.pavCreatedBy])['@id']);
 						annotation.put("lastSavedOn", annotations[i][IOntology.pavLastSavedOn]);
 						annotation.put("version", annotations[i][IOntology.pavVersionNumber]);
+						*/
 						
 						if(typesSet.contains(IOntology.annotationHighlight)) {
 							annotation.put("content", annotations[i][IOntology.hasTarget][0]["ao:hasSelector"]["ao:exact"]);
@@ -360,7 +655,56 @@ class AjaxPersistenceController {
 							annotation.put("cloud", cloudTerms);
 							*/
 						} else if(typesSet.contains(IOntology.annotationComment)) {
-							annotation.put("content", annotations[i][IOntology.content]);
+							//annotation.put("content", annotations[i][IOntology.content]);
+						} else if(typesSet.contains(IOntology.annotationMicroPublication)) {
+							def typo = annotations[i][IOntology.content][0]["mp:argues"]['@type'].indexOf("Hypo")>0? "Hypothesis" : "Claim";
+							def content = typo + ": " + annotations[i][IOntology.content][0]["mp:argues"]["mp:hasContent"];
+							if(annotations[i][IOntology.content][0]["mp:argues"]["mp:supportedBy"]!=null && annotations[i][IOntology.content][0]["mp:argues"]["mp:supportedBy"].size()>0) {
+								content += '<br/><div style="margin-top:5px;">supportedBy</div>'
+								for(int x=0; x<annotations[i][IOntology.content][0]["mp:argues"]["mp:supportedBy"].size(); x++) {
+									def item = annotations[i][IOntology.content][0]["mp:argues"]["mp:supportedBy"][x]["reif:resource"];
+									if(item["@type"]=="mp:DataImage") { 
+										content += "<table><td style='padding:5px; padding-top: 10px; vertical-align: top;'><img src='"+ createLinkTo(dir:"images/secure", file:"database-green.gif") + "'></td><td style='padding:5px; padding-top: 10px;'>" + "<img src='" + item["ao:context"]["domeo:displaySource"] + "'></td></tr></table>"
+									} else if(item["@type"]=="mp:Statement") {
+										content += "<table><td style='padding:5px; padding-top: 10px; vertical-align: top;'><img src='"+ createLinkTo(dir:"images/secure", file:"document-green.gif") + "'></td><td style='padding:5px; padding-top: 10px;'>" + "Statement: <span style='font-weight: bold;'>" + item["mp:hasContent"] + "</span></td></tr></table>"
+									} else if(item["@type"].indexOf("ArticleReference")>0) {
+										content += "<table><td style='padding:5px; padding-top: 10px;'><img src='"+ createLinkTo(dir:"images/secure", file:"document-green.gif") + "'></td><td style='padding:5px;padding-top: 10px; '>" + item["authorNames"] + ". <span style='font-weight: bold;'>" + item["title"] + "</span>. " + item["publicationInfo"]+ "</td></tr></table>"
+									}
+								}
+							}
+							if(annotations[i][IOntology.content][0]["mp:argues"]["mp:challengedBy"]!=null && annotations[i][IOntology.content][0]["mp:argues"]["mp:challengedBy"].size()>0) {
+								content += '<br/><div style="margin-top:5px;">challengedBy</div>'
+								for(int x=0; x<annotations[i][IOntology.content]["mp:argues"]["mp:challengedBy"].size(); x++) {
+									def item = annotations[i][IOntology.content][0]["mp:argues"]["mp:challengedBy"][x]["reif:resource"];
+									if(item["@type"]=="mp:DataImage") { 
+										content += "<table><td style='padding:5px; padding-top: 10px; vertical-align: top;'><img src='"+ createLinkTo(dir:"images/secure", file:"database-red.gif") + "'></td><td>" + "<img src='" + item["ao:context"]["domeo:displaySource"] + "'></td></tr></table><br/>"
+									} else if(item["@type"]=="mp:Statement") {
+										content += "<table><td style='padding:5px; padding-top: 10px; vertical-align: top;'><img src='"+ createLinkTo(dir:"images/secure", file:"document-red.gif") + "'></td><td style='padding:5px; padding-top: 10px;'>" + "Statement: <span style='font-weight: bold;'>" + item["mp:hasContent"] + "</span></td></tr></table>"
+									} else if(item["@type"].indexOf("ArticleReference")>0) {
+										content += "<table><td style='padding:5px; padding-top: 10px; vertical-align: top;'><img src='"+ createLinkTo(dir:"images/secure", file:"document-red.gif") + "'></td><td>" + item["authorNames"] + ". <span style='font-weight: bold;'>" + item["title"] + "</span>. " + item["publicationInfo"]+ "</td></tr></table><br/>"
+									}
+								}
+							}
+							
+							JSONArray cloudTerms = new JSONArray();
+							JSONArray contentTerms = new JSONArray();
+							
+							
+							if(annotations[i][IOntology.content][0]["mp:argues"]["mp:qualifiedBy"]!=null && annotations[i][IOntology.content][0]["mp:argues"]["mp:qualifiedBy"].size()>0) {
+								content += '<br/><div style="margin-top:5px;">qualifiedBy</div>' 
+								content += '<ul class="tags">'
+								for(def kk=0; kk<annotations[i][IOntology.content][0]["mp:argues"]["mp:qualifiedBy"].size(); kk++) {
+									cloudTerms.add("'" + annotations[i][IOntology.content][0]["mp:argues"]["mp:qualifiedBy"][kk]["reif:resource"][IOntology.generalLabel] + "'");
+									contentTerms.add("<a href=\"" +annotations[i][IOntology.content][0]["mp:argues"]["mp:qualifiedBy"][kk]["reif:resource"][IOntology.generalId] + "\">" + 
+										annotations[i][IOntology.content][0]["mp:argues"]["mp:qualifiedBy"][kk]["reif:resource"][IOntology.generalLabel] + "</a>");
+									content += '<li>' + annotations[i][IOntology.content][0]["mp:argues"]["mp:qualifiedBy"][kk]["reif:resource"][IOntology.generalLabel] + '</li>';
+								}
+								content += '</ul><br style="clear:both;"/>'
+							}
+							
+							annotation.put("content", content);	
+							annotation.put("cloud", cloudTerms);
+							//annotation.put("content", contentTerms);
 						}
 						
 						// TODO multiple targets and distinguish by selector
@@ -372,8 +716,8 @@ class AjaxPersistenceController {
 							commentsMap.put(annotations[i][IOntology.generalId], null);
 							annotationsMap.put(annotations[i][IOntology.generalId], annotation);
 						} else if(annotations[i][IOntology.hasTarget][0][IOntology.selector]!=null && annotations[i][IOntology.hasTarget][0][IOntology.selector][IOntology.generalType] == IOntology.selectorAnnotation) {
-							println 'Comment on ' + annotations[i][IOntology.hasTarget][0][IOntology.selector]['ao:annotation']
-							commentsMap.put(annotations[i][IOntology.generalId], annotations[i][IOntology.hasTarget][0][IOntology.selector]['ao:annotation']);
+							// println 'Comment on ' + annotations[i][IOntology.hasTarget][0][IOntology.selector]['ao:annotation']
+							//commentsMap.put(annotations[i][IOntology.generalId], annotations[i][IOntology.hasTarget][0][IOntology.selector]['ao:annotation']);
 						} else if(annotations[i][IOntology.hasTarget][0][IOntology.selector]!=null && annotations[i][IOntology.hasTarget][0][IOntology.selector][IOntology.generalType] == IOntology.selectorImage) {
 							annotation.put("imageInDocumentSelector", annotations[i][IOntology.hasTarget][0][IOntology.selector][IOntology.generalType]);
 							annotation.put("image", annotations[i][IOntology.hasTarget][0][IOntology.source]);
@@ -384,13 +728,37 @@ class AjaxPersistenceController {
 							//}
 							annotationsMap.put(annotations[i][IOntology.generalId], annotation);
 						}
+						
+						println "Annotated by: " + annotatedByMap.get(annotations[i][IOntology.generalId]);
+						
+						JSONArray annotatedBys = new JSONArray();
+						chainAnnotationsOnAnnotations(annotatedByMap, agentsCache, annotatedBys, annotations[i][IOntology.generalId]);
+						if(annotatedBys.size()>0) annotation.put("annotatedBy", annotatedBys); 
+						
+						/*
+						def annotatedBy = annotatedByMap.get(annotations[i][IOntology.generalId]);
+						if(annotatedBy!=null) {
+							JSONObject annotationOnAnnotation = new JSONObject();
+							
+							extractBasicAnnotationProperties(agentsCache, annotationOnAnnotation, annotatedBy);
+							
+							annotationOnAnnotation.put("id", annotatedBy[IOntology.generalId]);
+							annotationOnAnnotation.put("content", annotatedBy[IOntology.content]['cnt:chars'][0]);
+
+							
+							annotatedBys.add(annotationOnAnnotation);
+							
+							annotation.put("annotatedBy", annotatedBys);
+						}
+						*/
 					}
+					
 					
 			
 					
 					// Count comments for each annotation
 					commentsMap.values().each { comment ->
-						println comment;
+						println '---> ' + comment;
 					}
 					
 					commentsMap.keySet().each { commentId ->
@@ -429,6 +797,426 @@ class AjaxPersistenceController {
 			render (responseToSets as JSON);
 			return;
 		}
+	}
+	
+	def jsonAnnotationSet = {
+		def setUri = params.setUri;
+		def userId = params.userId;
+		
+		println 'setUri ' + setUri;
+		println 'userId ' + userId;
+		 
+		if (setUri?.trim() && userId?.trim()) {
+			int counter = 0;
+			JSONObject responseToSets = new JSONObject();
+			def annotationSetIndex = AnnotationSetIndex.findByIndividualUri(setUri);
+			if(annotationSetIndex) {
+				println 'MongoId: ' + annotationSetIndex.mongoUuid
+
+				def set;
+				if(!ELASTICO) {
+					SleepyMongooseWrapper mongoWrapper = new SleepyMongooseWrapper(grailsApplication.config.mongodb.url, grailsApplication.config.mongodb.database, grailsApplication.config.mongodb.collection);
+					String document = mongoWrapper.doMongoDBFindByObjectId(annotationSetIndex.mongoUuid);
+					if(document!=null && document.length()>0) {
+						def temp = JSON.parse(document);
+						if(temp.results.size()>0) {
+							set = temp.results[0]
+						}
+					}
+				} else {
+					ElasticSearchWrapper esWrapper = new ElasticSearchWrapper(grailsApplication.config.elastico.database, grailsApplication.config.elastico.collection, grailsApplication.config.elastico.ip, grailsApplication.config.elastico.port);
+					String document = esWrapper.getDocument(annotationSetIndex.mongoUuid, false, null);
+					if(document!=null) {
+						def ret = JSON.parse(document);
+						if(ret.hits.total==1) {
+							set = ret.hits.hits[0]._source;
+						}
+					}
+				}
+				
+				// Cache agents
+				def agents = set[IOntology.agents];
+				def agentsCache = [:];
+				agents.each { agent ->
+					agentsCache.put(agent["@id"], agent);
+				}
+				
+				JSONObject jsonSet = new JSONObject();
+				jsonSet.put("id", set[IOntology.generalId]);
+				jsonSet.put("type", set[IOntology.generalType]);
+				if(set[IOntology.generalType]==IOntology.discussionSet) 
+					jsonSet.put("label", "<img src='" + createLinkTo(dir:"images/secure", file:"commentsIcon_24.png") + "'> " + set[IOntology.generalLabel]);
+				else
+					jsonSet.put("label", set[IOntology.generalLabel]);
+					
+				jsonSet.put("description", set[IOntology.generalDescription]);
+				jsonSet.put("target", set[IOntology.target]);
+				jsonSet.put("createdOn", set[IOntology.pavCreatedOn]);
+				
+				//jsonSet.put("createdBy", agentsCache.get(set[IOntology.pavCreatedBy]['@id']));
+				jsonSet.put("createdBy", agentsCache.get(set[IOntology.pavCreatedBy]));
+				
+				//def up1 = agentsCache.get(set[IOntology.pavCreatedBy]['@id'])['@id'].toString();
+				def up1 = agentsCache.get(set[IOntology.pavCreatedBy])['@id'].toString();
+				jsonSet.put("createdById", up1.replaceAll(~/urn:person:uuid:/, ""));
+				
+				//jsonSet.put("createdByName", agentsCache.get(set[IOntology.pavCreatedBy]['@id'])['foafx:name']);
+				jsonSet.put("createdByName", agentsCache.get(set[IOntology.pavCreatedBy])['foafx:name']);
+				jsonSet.put("version", set[IOntology.pavVersionNumber]);
+				jsonSet.put("permissions", set[IOntology.permissions]);
+				responseToSets.put("set", jsonSet);
+					
+				// All annotations
+				def annotations = set[IOntology.annotations];
+					
+				// Comments extraction
+				def commentsMap = [:];
+				def curationsMap = [:];
+				def annotatedByMap = [:];
+				for(def i=0; i<annotations.length(); i++) {
+					JSONObject annotation = new JSONObject();
+					annotation.put("id", annotations[i][IOntology.generalId]);
+					// Extract types
+					def typesSet = [] as Set;
+					if(annotations[i][IOntology.generalType] instanceof  org.codehaus.groovy.grails.web.json.JSONArray) {
+						for(def j=0; j<annotations[i][IOntology.generalType].length(); j++) {
+							typesSet.add(annotations[i][IOntology.generalType][j]);
+							if(!annotations[i][IOntology.generalType][j].equals("ao:PostIt")) {
+								annotation.put("type", annotations[i][IOntology.generalType][j]);
+								annotation.put("label", annotations[i][IOntology.generalLabel]);
+							}
+						}
+					} else {
+						annotation.put("type", annotations[i][IOntology.generalType]);
+						annotation.put("label", annotations[i][IOntology.generalLabel]);
+						typesSet.add(annotations[i][IOntology.generalType]);
+					}
+					
+					if(typesSet.contains(IOntology.annotationComment) || typesSet.contains(IOntology.annotationLinearComment)) {
+						// General
+						annotation.put("createdOn", annotations[i][IOntology.pavCreatedOn]);
+						//annotation.put("createdBy", agentsCache.get(annotations[i][IOntology.pavCreatedBy]['@id']));
+						annotation.put("createdBy", agentsCache.get(annotations[i][IOntology.pavCreatedBy]));
+						//annotation.put("createdByName", agentsCache.get(annotations[i][IOntology.pavCreatedBy]['@id'])['foafx:name']);
+						annotation.put("createdByName", agentsCache.get(annotations[i][IOntology.pavCreatedBy])['foafx:name']);
+					
+						//def up = agentsCache.get(annotations[i][IOntology.pavCreatedBy]['@id'])['@id'].toString();
+						def up = agentsCache.get(annotations[i][IOntology.pavCreatedBy])['@id'].toString();           
+						annotation.put("createdById", up.replaceAll(~/urn:person:uuid:/, ""));
+						//annotation.put("createdByUri", agentsCache.get(annotations[i][IOntology.pavCreatedBy]['@id'])['@id']);
+						annotation.put("createdByUri", agentsCache.get(annotations[i][IOntology.pavCreatedBy])['@id']);
+						annotation.put("lastSavedOn", annotations[i][IOntology.pavLastSavedOn]);
+						annotation.put("version", annotations[i][IOntology.pavVersionNumber]);
+						
+						// Comment dependent
+						annotation.put("content", annotations[i][IOntology.content]);
+					
+						if(annotations[i][IOntology.hasTarget][0][IOntology.selector]!=null && annotations[i][IOntology.hasTarget][0][IOntology.selector][IOntology.generalType] == IOntology.selectorAnnotation) {
+							println 'Comment ' +  annotations[i][IOntology.generalId] + ' on ' + annotations[i][IOntology.hasTarget][0][IOntology.selector]['ao:annotation']
+							commentsMap.put(annotations[i][IOntology.generalId], annotations[i][IOntology.hasTarget][0][IOntology.selector]['ao:annotation']);
+							annotatedByMap.put(annotations[i][IOntology.hasTarget][0][IOntology.selector]['ao:annotation'], annotations[i]);
+						}
+					} else if(typesSet.contains(IOntology.annotationCuration)) {
+						annotation.put("createdOn", annotations[i][IOntology.pavCreatedOn]);
+						//annotation.put("createdBy", agentsCache.get(annotations[i][IOntology.pavCreatedBy]['@id']));
+						annotation.put("createdBy", agentsCache.get(annotations[i][IOntology.pavCreatedBy]));
+						//annotation.put("createdByName", agentsCache.get(annotations[i][IOntology.pavCreatedBy]['@id'])['foafx:name']);
+						annotation.put("createdByName", agentsCache.get(annotations[i][IOntology.pavCreatedBy])['foafx:name']);
+					
+						//def up = agentsCache.get(annotations[i][IOntology.pavCreatedBy]['@id'])['@id'].toString();
+						def up = agentsCache.get(annotations[i][IOntology.pavCreatedBy])['@id'].toString();
+						annotation.put("createdById", up.replaceAll(~/urn:person:uuid:/, ""));
+						//annotation.put("createdByUri", agentsCache.get(annotations[i][IOntology.pavCreatedBy]['@id'])['@id']);
+						annotation.put("createdByUri", agentsCache.get(annotations[i][IOntology.pavCreatedBy])['@id']);
+						annotation.put("lastSavedOn", annotations[i][IOntology.pavLastSavedOn]);
+						annotation.put("version", annotations[i][IOntology.pavVersionNumber]);
+						
+						// Comment dependent         
+						annotation.put("content", annotations[i][IOntology.content][0]['rdf:value']);
+						
+						if(annotations[i][IOntology.hasTarget][0][IOntology.selector]!=null && annotations[i][IOntology.hasTarget][0][IOntology.selector][IOntology.generalType] == IOntology.selectorAnnotation) {
+							println 'Curation ' +  annotations[i][IOntology.generalId] + ' on ' + annotations[i][IOntology.hasTarget][0][IOntology.selector]['ao:annotation']
+							commentsMap.put(annotations[i][IOntology.generalId], annotations[i][IOntology.hasTarget][0][IOntology.selector]['ao:annotation']);
+							annotatedByMap.put(annotations[i][IOntology.hasTarget][0][IOntology.selector]['ao:annotation'], annotations[i]);
+						}
+					}
+				}
+					
+					
+				def annotationsMap = [:];			
+				def commentsCounter = [:];
+				def curationsCounter = [:];
+				
+				def curationsTotal = 0;
+				def commentsTotal = 0;
+				
+				def jsonItems = new JSONArray();
+				
+				for(def i=0; i<annotations.length(); i++) {
+					JSONObject annotation = new JSONObject();
+					def typesSet = extractBasicAnnotationProperties(agentsCache, annotation, annotations[i]);
+
+					if(typesSet.contains(IOntology.annotationHighlight)) {
+						annotation.put("content", annotations[i][IOntology.hasTarget][0]["ao:hasSelector"]["ao:exact"]);
+					} else if(typesSet.contains(IOntology.annotationQualifier)) {
+						JSONArray cloudTerms = new JSONArray();
+						StringBuffer contentTerms = new StringBuffer();
+						contentTerms.append("<div style='overflow: hidden;'><ul class='tags'>");
+						for(def kk=0; kk<annotations[i]["ao:hasTopic"].length(); kk++) {
+							cloudTerms.add("'" + annotations[i]["ao:hasTopic"][kk][IOntology.generalLabel] + "'");
+							contentTerms.append("<li><a href=\"" + annotations[i]["ao:hasTopic"][kk][IOntology.generalId] + "\">" + 
+								annotations[i]["ao:hasTopic"][kk][IOntology.generalLabel] + "</a><span class='source'>from " + annotations[i]["ao:hasTopic"][kk]["dct:source"]["rdfs:label"] + "</span></li>");
+						}
+						contentTerms.append("</ul></div>");
+						annotation.put("cloud", cloudTerms.toString());
+						annotation.put("content", contentTerms);
+						annotation.put("body", annotations[i]["ao:hasTopic"]);
+					} else if(typesSet.contains(IOntology.annotationPostIt)) {
+						annotation.put("content", annotations[i][IOntology.content][0]['cnt:chars']);
+					} else if(typesSet.contains(IOntology.annotationAntibody)) {
+						annotation.put("content", annotations[i][IOntology.content][0]['domeo:antibody'][0]['rdfs:label']);
+						annotation.put("body", annotations[i]["ao:body"]);
+					} else if(typesSet.contains(IOntology.annotationComment)) {
+						//annotation.put("content", annotations[i][IOntology.content]);
+					} else if(typesSet.contains(IOntology.annotationLinearComment)) {
+						annotation.put("content", annotations[i][IOntology.content][0]['cnt:chars']);
+					} else if(typesSet.contains(IOntology.annotationMicroPublication)) {
+						def typo = annotations[i][IOntology.content][0]["mp:argues"]['@type'].indexOf("Hypo")>0? "Hypothesis" : "Claim";
+						def content = "<span style='font-weight: bold;'>" +typo + "</span>: " + annotations[i][IOntology.content][0]["mp:argues"]["mp:hasContent"];
+						if(annotations[i][IOntology.content][0]["mp:argues"]["mp:supportedBy"]!=null && annotations[i][IOntology.content][0]["mp:argues"]["mp:supportedBy"].size()>0) {
+							content += '<br/><div style="margin-top:5px;font-weight: bold;">Supported By:</div>'
+							for(int x=0; x<annotations[i][IOntology.content][0]["mp:argues"]["mp:supportedBy"].size(); x++) {
+								def item = annotations[i][IOntology.content][0]["mp:argues"]["mp:supportedBy"][x]["reif:resource"];
+								if(item["@type"]=="mp:DataImage") {
+									content += "<table><td style='padding:5px; padding-top: 10px; vertical-align: top;'><img src='"+ createLinkTo(dir:"images/secure", file:"database-green.gif") + "'></td><td style='padding:5px; padding-top: 10px;'>" + "<img src='" + item["ao:context"]["domeo:displaySource"] + "' style='max-width:500px'></td></tr></table>"
+								} else if(item["@type"]=="mp:Statement") {
+									content += "<table><td style='padding:5px; padding-top: 10px; vertical-align: top;'><img src='"+ createLinkTo(dir:"images/secure", file:"document-green.gif") + "'></td><td style='padding:5px; padding-top: 10px;'>" + "Statement: <span style='font-weight: bold;'>" + item["mp:hasContent"] + "</span></td></tr></table>"
+								} else if(item["@type"].indexOf("ArticleReference")>0) {
+									content += "<table><td style='padding:5px; padding-top: 10px;'><img src='"+ createLinkTo(dir:"images/secure", file:"document-green.gif") + "'></td><td style='padding:5px;padding-top: 10px; '>" + item["authorNames"] + ". <span style='font-weight: bold;'>" + item["title"] + "</span>. " + item["publicationInfo"]+ "</td></tr></table>"
+								}
+							}
+						}
+						if(annotations[i][IOntology.content][0]["mp:argues"]["mp:challengedBy"]!=null && annotations[i][IOntology.content][0]["mp:argues"]["mp:challengedBy"].size()>0) {
+							content += '<br/><div style="margin-top:5px;font-weight: bold;">Challenged By:</div>'
+							for(int x=0; x<annotations[i][IOntology.content]["mp:argues"]["mp:challengedBy"].size(); x++) {
+								def item = annotations[i][IOntology.content][0]["mp:argues"]["mp:challengedBy"][x]["reif:resource"];
+								if(item["@type"]=="mp:DataImage") {
+									content += "<table><td style='padding:5px; padding-top: 10px; vertical-align: top;'><img src='"+ createLinkTo(dir:"images/secure", file:"database-red.gif") + "'></td><td>" + "<img src='" + item["ao:context"]["domeo:displaySource"] + "' style='max-width:500px'></td></tr></table><br/>"
+								} else if(item["@type"]=="mp:Statement") {
+									content += "<table><td style='padding:5px; padding-top: 10px; vertical-align: top;'><img src='"+ createLinkTo(dir:"images/secure", file:"document-red.gif") + "'></td><td style='padding:5px; padding-top: 10px;'>" + "Statement: <span style='font-weight: bold;'>" + item["mp:hasContent"] + "</span></td></tr></table>"
+								} else if(item["@type"].indexOf("ArticleReference")>0) {
+									content += "<table><td style='padding:5px; padding-top: 10px; vertical-align: top;'><img src='"+ createLinkTo(dir:"images/secure", file:"document-red.gif") + "'></td><td>" + item["authorNames"] + ". <span style='font-weight: bold;'>" + item["title"] + "</span>. " + item["publicationInfo"]+ "</td></tr></table><br/>"
+								}
+							}
+						}
+						
+						JSONArray cloudTerms = new JSONArray();
+						JSONArray contentTerms = new JSONArray();
+						
+						
+						
+						if(annotations[i][IOntology.content][0]["mp:argues"]["mp:qualifiedBy"]!=null && annotations[i][IOntology.content][0]["mp:argues"]["mp:qualifiedBy"].size()>0) {
+							content += '<br/><div style="margin-top:5px;font-weight: bold;">Qualified By:</div>'
+							content += '<ul class="tags">'
+							for(def kk=0; kk<annotations[i][IOntology.content][0]["mp:argues"]["mp:qualifiedBy"].size(); kk++) {
+								cloudTerms.add("'" + annotations[i][IOntology.content][0]["mp:argues"]["mp:qualifiedBy"][kk]["reif:resource"][IOntology.generalLabel] + "'");
+								contentTerms.add("<a href=\"" +annotations[i][IOntology.content][0]["mp:argues"]["mp:qualifiedBy"][kk]["reif:resource"][IOntology.generalId] + "\">" +
+									annotations[i][IOntology.content][0]["mp:argues"]["mp:qualifiedBy"][kk]["reif:resource"][IOntology.generalLabel] + "</a>");
+								content += "<li><a href=\"" +annotations[i][IOntology.content][0]["mp:argues"]["mp:qualifiedBy"][kk]["reif:resource"][IOntology.generalId] + "\">" +
+									annotations[i][IOntology.content][0]["mp:argues"]["mp:qualifiedBy"][kk]["reif:resource"][IOntology.generalLabel] + "</a><span class='source'> from " + annotations[i][IOntology.content][0]["mp:argues"]["mp:qualifiedBy"][kk]["reif:resource"]["dct:source"]["rdfs:label"] + "</span></li>";
+							}
+							content += '</ul><br style="clear:both;"/>'
+						}
+						
+						annotation.put("content", content);
+						annotation.put("cloud", cloudTerms);
+						annotation.put("body", annotations[i][IOntology.content]);
+						//annotation.put("content", contentTerms);
+					}
+					
+					// TODO multiple targets and distinguish by selector
+					if(annotations[i][IOntology.hasTarget][0][IOntology.selector]!=null && annotations[i][IOntology.hasTarget][0][IOntology.selector][IOntology.generalType] == IOntology.selectorTextQuote) {
+						annotation.put("textQuoteSelector", annotations[i][IOntology.hasTarget][0][IOntology.selector][IOntology.generalType]);
+						annotation.put("prefix", annotations[i][IOntology.hasTarget][0][IOntology.selector][IOntology.selectorTextQuotePrefix]);
+						annotation.put("match", annotations[i][IOntology.hasTarget][0][IOntology.selector][IOntology.selectorTextQuoteMatch]);
+						annotation.put("suffix", annotations[i][IOntology.hasTarget][0][IOntology.selector][IOntology.selectorTextQuoteSuffix]);
+						//commentsMap.put(annotations[i][IOntology.generalId], null);
+						annotationsMap.put(annotations[i][IOntology.generalId], annotation);
+					} else if(annotations[i][IOntology.hasTarget][0][IOntology.selector]!=null && annotations[i][IOntology.hasTarget][0][IOntology.selector][IOntology.generalType] == IOntology.selectorAnnotation) {
+						//println 'Comment on ' + annotations[i][IOntology.hasTarget][0][IOntology.selector]['ao:annotation']
+						//commentsMap.put(annotations[i][IOntology.generalId], annotations[i][IOntology.hasTarget][0][IOntology.selector]['ao:annotation']);
+						annotationsMap.put(annotations[i][IOntology.generalId], annotation);
+					} else if(annotations[i][IOntology.hasTarget][0][IOntology.selector]!=null && annotations[i][IOntology.hasTarget][0][IOntology.selector][IOntology.generalType] == IOntology.selectorImage) {
+						annotation.put("imageInDocumentSelector", annotations[i][IOntology.hasTarget][0][IOntology.selector][IOntology.generalType]);
+						annotation.put("image", annotations[i][IOntology.hasTarget][0][IOntology.source]);
+						//if(annotations[i][IOntology.hasTarget][0][IOntology.displaySource]!=null) {
+							annotation.put("display", annotations[i][IOntology.hasTarget][0][IOntology.displaySource]);
+						//} else {
+						//	annotation.put("display", annotations[i][IOntology.hasTarget][0][IOntology.source]);
+						//}
+						annotationsMap.put(annotations[i][IOntology.generalId], annotation);
+					}
+					
+					println "Annotated by: " + annotatedByMap.get(annotations[i][IOntology.generalId]);
+					
+					JSONArray annotatedBys = new JSONArray();
+					chainAnnotationsOnAnnotations(annotatedByMap, agentsCache, annotatedBys, annotations[i][IOntology.generalId]);
+					if(annotatedBys.size()>0) annotation.put("annotatedBy", annotatedBys);
+				}
+					
+				annotationsMap.keySet().each { annotationId ->
+					println 'annotation: ' + annotationId;
+					def pivot = annotationId
+					if(annotatedByMap.get(pivot)!=null) {
+						while(pivot!=null && annotatedByMap.get(pivot)!=null) {
+							if(annotatedByMap.get(pivot)['@type']==IOntology.annotationComment) {
+								commentsTotal++;
+								if(commentsCounter.containsKey(annotationId)) {
+									def counting = commentsCounter.get(annotationId);
+									counting++;
+									commentsCounter.put(annotationId, counting);
+								} else commentsCounter.put(annotationId, "1");
+							} else if(annotatedByMap.get(pivot)['@type']==IOntology.annotationCuration) {
+								curationsTotal++;
+								if(curationsCounter.containsKey(annotationId)) {
+									def counting = curationsCounter.get(annotationId);
+									counting++;
+									curationsCounter.put(annotationId, counting);
+								} else curationsCounter.put(annotationId, "1");
+							}
+							println annotatedByMap.get(pivot)['@type'] + " on " + pivot;
+							pivot = annotatedByMap.get(pivot)['@id'];
+							//println pivot
+						}
+					}
+				}
+				
+				
+//					annotatedByMap.keySet().each { annotationId ->
+//						def pivot = annotationId
+//						if(annotatedByMap.get(pivot)!=null) {
+//							println annotatedByMap.get(pivot)['@type'];
+//							while(annotatedByMap.get(pivot)!=null) {
+//								pivot = annotatedByMap.get(annotatedByMap.get(pivot)['@id']);
+//								println pivot
+//								if(pivot!=null) {
+//									println annotatedByMap.get(pivot)['@type'] + " - " + annotatedByMap.get(pivot)['@id'];							
+//								}
+//							}
+//						}
+//					}
+					
+					// Count comments for each annotation					
+//					commentsMap.keySet().each { commentId ->
+//						def pivot = commentId
+//						if(annotatedByMap.get(pivot)!=null) println annotatedByMap.get(pivot)['@type'];
+//						if(commentsMap.get(pivot)!=null) {
+//							while(commentsMap.get(pivot)!=null) {
+//								//println 'pivot ' + pivot
+//								//println annotatedByMap.get(pivot)
+//								if(annotatedByMap.get(pivot)!=null) println annotatedByMap.get(pivot)['@type'];
+//								pivot = commentsMap.get(pivot);
+//								
+//								
+//							}
+//							
+//							println 'comment pivot ' + pivot
+//							
+//							if(commentsCounter.containsKey(pivot)) {
+//								def counting = commentsCounter.get(pivot);
+//								
+//								counting++;
+//								commentsCounter.put(pivot, counting);
+//							} else commentsCounter.put(pivot, "1");
+//						}
+//					}
+
+					
+//					commentsCounter.keySet().each { comment ->
+//						println "comment "+ comment + " count " + commentsCounter.get(comment);
+//					}
+
+					annotationsMap.keySet().each { annotationId ->
+						//println 'id: ' + annotationId
+						if(commentsCounter.get(annotationId) && commentsCounter.get(annotationId)!=null) {
+							println 'comment ' + commentsCounter.get(annotationId)
+							annotationsMap.get(annotationId).put("commentsCounter", commentsCounter.get(annotationId))
+							//annotationsMap.get(annotationId).put("withComments", "yes")
+						}
+						if(curationsCounter.get(annotationId) && curationsCounter.get(annotationId)!=null) {
+							println 'curation ' + curationsCounter.get(annotationId)
+							annotationsMap.get(annotationId).put("curationsCounter", curationsCounter.get(annotationId))
+							//annotationsMap.get(annotationId).put("withComments", "yes")
+						}
+						jsonItems.add(annotationsMap.get(annotationId));
+					}
+					
+					def items = new JSONObject();
+					items.put("items", jsonItems)
+					responseToSets.put("items", items);
+					counter++;
+					
+					responseToSets.put("totalComments", commentsTotal);
+					responseToSets.put("totalCurations", curationsTotal);
+					
+			}
+			JSON.use("deep")
+			render (responseToSets as JSON);
+			return;
+		}
+	}
+	
+	private void chainAnnotationsOnAnnotations(def annotatedByMap, def agentsCache, JSONArray annotationsOnAnnotation, def annotationId) {
+		JSONObject annotationOnAnnotation = new JSONObject();
+		def annotatedBy = annotatedByMap.get(annotationId);
+		if(annotatedBy!=null) {		
+			extractBasicAnnotationProperties(agentsCache, annotationOnAnnotation, annotatedBy);
+			annotationOnAnnotation.put("id", annotatedBy[IOntology.generalId]);
+			if(annotatedBy['@type'].contains(IOntology.annotationComment)) {
+				annotationOnAnnotation.put("content", annotatedBy[IOntology.content][0]['cnt:chars']);
+			} else if(annotatedBy['@type'].contains(IOntology.annotationCuration)) {
+				annotationOnAnnotation.put("content", annotatedBy[IOntology.content][0]['rdf:value']);
+			}
+			annotationsOnAnnotation.add(annotationOnAnnotation);
+			chainAnnotationsOnAnnotations(annotatedByMap, agentsCache, annotationsOnAnnotation, annotatedBy[IOntology.generalId])
+		}
+	}
+	
+	private Set extractBasicAnnotationProperties(def agentsCache, def jsonAnnotation, def originalAnnotation) {
+		jsonAnnotation.put("id", originalAnnotation[IOntology.generalId]);
+		
+		def typesSet = [] as Set;
+		if(originalAnnotation[IOntology.generalType] instanceof  org.codehaus.groovy.grails.web.json.JSONArray) {
+			for(def j=0; j<originalAnnotation[IOntology.generalType].length(); j++) {
+				typesSet.add(originalAnnotation[IOntology.generalType][j]);
+				if(!originalAnnotation[IOntology.generalType][j].equals("ao:PostIt")) {
+					jsonAnnotation.put("type", originalAnnotation[IOntology.generalType][j]);
+					jsonAnnotation.put("label", originalAnnotation[IOntology.generalLabel]);
+				}
+			}
+		} else {
+			jsonAnnotation.put("type", originalAnnotation[IOntology.generalType]);
+			if(originalAnnotation[IOntology.generalType]==IOntology.annotationLinearComment) 
+				jsonAnnotation.put("label", "<img src='" + createLinkTo(dir:"images/secure", file:"commentIcon_16.png") + "'> " + originalAnnotation[IOntology.generalLabel]);
+			else
+				jsonAnnotation.put("label", originalAnnotation[IOntology.generalLabel]);
+			typesSet.add(originalAnnotation[IOntology.generalType]);
+		}
+		
+		jsonAnnotation.put("createdOn", originalAnnotation[IOntology.pavCreatedOn]);
+		jsonAnnotation.put("createdBy", agentsCache.get(originalAnnotation[IOntology.pavCreatedBy]));
+		jsonAnnotation.put("createdByName", agentsCache.get(originalAnnotation[IOntology.pavCreatedBy])['foafx:name']);
+
+		def up = agentsCache.get(originalAnnotation[IOntology.pavCreatedBy])['@id'].toString();
+		jsonAnnotation.put("createdById", up.replaceAll(~/urn:person:uuid:/, ""));
+		jsonAnnotation.put("createdByUri", agentsCache.get(originalAnnotation[IOntology.pavCreatedBy])['@id']);
+		jsonAnnotation.put("lastSavedOn", originalAnnotation[IOntology.pavLastSavedOn]);
+		jsonAnnotation.put("version", originalAnnotation[IOntology.pavVersionNumber]);		
+		return typesSet;
+	}
+	
+	private void extractAnnotationOnAnnotationChain(def annotatedByMap, def annotation, def maxLevels, def counter) {
+		
 	}
 	
 	/*
@@ -490,15 +1278,67 @@ class AjaxPersistenceController {
 	def searchSet = {
 		def user = userProfile();
 
+		println '-------------------------------------'
+		println ' search (1) on: ' +  request.JSON.query
+		println '-------------------------------------'
+		def strings = [];
+		Matcher matcher = Pattern.compile(/"[^\\"]*(\\"[^\\"]*)*"/).matcher(request.JSON.query)
+		matcher.each {
+			def hit = it;
+			println 'match: ' + it
+			strings.add(it[0]);
+		}
+		def queryterms = []
+		def querystring = request.JSON.query;
+		strings.each { hit ->
+			println 'hit: ' + hit
+			queryterms.add(hit.replaceAll("\"",""));
+			println 'before query ' + querystring;
+			querystring = querystring.replaceAll(hit, "");
+			println 'after query ' + querystring
+		}
+		def ress = querystring.split();
+		ress.each { res ->
+			println 'more ' + res;
+			queryterms.add(res);
+		}
+		
+		// "[^\\"]*(\\"[^\\"]*)*"
+		
+		//Pattern pattern = ~/"[^\\"]*(\\"[^\\"]*)*"/;
+
+		
+		
 		JSONArray results = new JSONArray();
 		if(request.JSON) {
 			def res;
 			
+			String[] newvalues = new String[queryterms.size()+1];
+			String[] newparsed = new String[queryterms.size()+1];
+			
+			for(i in 0..queryterms.size()-1) {
+				newvalues[i] = queryterms[i]
+				newparsed[i] = 'match'
+			}
+			newvalues[newvalues.length-1] =  request.JSON.setId;
+			newparsed[newvalues.length-1] = 'term'
+			
+			String[] newfields  = new String[queryterms.size()+1];
+			for(i in 0..queryterms.size()-1) {
+				newfields[i] = '_all'
+			}
+			newfields[newfields.length-1] =  'domeo_!DOMEO_NS!_belongsToSet';
+			
+			println newfields.size() + ' - ' + newfields;
+			println newvalues.size() + ' - ' + newvalues;
+			println newparsed.size() + ' - ' + newparsed;
+			
 			if(request.JSON.setId && request.JSON.query) {
-				String[] fields = ['_all', 'domeo_!DOMEO_NS!_belongsToSet']
-				String[] values = [request.JSON.query, request.JSON.setId]
+				//String[] fields = ['_all', 'domeo_!DOMEO_NS!_belongsToSet']
+				//String[] values = [request.JSON.query.replaceAll("\"","\\\\\""), request.JSON.setId]
 				
-				res = annotationSearchService.searchItems(fields , values, false, null)
+				res = annotationSearchService.searchItems(newfields , newvalues, newparsed, false, null)
+				println 'items ' + JSON.parse(res).hits.hits;;
 				ElasticSearchWrapper esWrapper = new ElasticSearchWrapper(grailsApplication.config.elastico.database, grailsApplication.config.elastico.collection, grailsApplication.config.elastico.ip, grailsApplication.config.elastico.port);
 
 				JSONObject r = JSON.parse(res);
@@ -521,6 +1361,136 @@ class AjaxPersistenceController {
 	def search = {		
 		def user = userProfile();
 		
+		println '-------------------------------------'
+		println ' search (0) on: ' +  request.JSON.query
+		println '-------------------------------------'
+		def strings = [];
+		Matcher matcher = Pattern.compile(/"[^\\"]*(\\"[^\\"]*)*"/).matcher(request.JSON.query)
+		matcher.each {
+			def hit = it;
+			println 'match: ' + it
+			strings.add(it[0]);
+		}
+		def queryterms = []
+		def querystring = request.JSON.query;
+		strings.each { hit ->
+			println 'hit: ' + hit
+			queryterms.add(hit.replaceAll("\"",""));
+			println 'before query ' + querystring;
+			querystring = querystring.replaceAll(hit, "");
+			println 'after query ' + querystring
+		}
+		def ress = querystring.split();
+		ress.each { res ->
+			println 'more ' + res; 
+			queryterms.add(res);
+		}
+		
+		println 'queryterms ' + queryterms
+		
+		int paginationOffset = (request.JSON.paginationOffset?request.JSON.paginationOffset:0);
+		int paginationRange = (request.JSON.paginationRange?request.JSON.paginationRange:2);
+		
+		List<AnnotationSetIndex> annotationListItemWrappers = new ArrayList<AnnotationSetIndex>();
+		if(request.JSON) {
+			int globalCounter = 0;
+			int allowedCounter = 0;
+			
+			def res;
+			//println "Query " + request.JSON.query
+			//println "Public " + request.JSON.permissionsPublic
+			//println "Private " + request.JSON.permissionsPrivate
+			
+			//println "Human " + request.JSON.agentHuman
+			//println "Software " + request.JSON.agentSoftware
+			
+			def agent;
+			if(request.JSON.agentHuman==true && request.JSON.agentSoftware != true) 
+				agent = 'foafx:Person'
+			else if(request.JSON.agentHuman!=true && request.JSON.agentSoftware == true) 
+				agent = 'foafx:Software'
+				
+			String[] newparsed = null;
+			if(agent==null) newparsed = new String[queryterms.size()];
+			else newparsed = new String[queryterms.size()+1];
+				
+			String[] newvalues = null;
+			if(agent==null) newvalues = new String[queryterms.size()];
+			else newvalues = new String[queryterms.size()+1];
+			
+			for(i in 0..queryterms.size()-1) {
+				newvalues[i] = queryterms[i]
+			}
+			if(!agent==null) newvalues[newvalues.length-1] =  agent;
+			
+			String[] newfields = null
+			if(agent==null) newfields = new String[queryterms.size()];
+			else newfields = new String[queryterms.size()+1];
+			for(i in 0..queryterms.size()-1) {
+				newfields[i] = '_all'
+				newparsed[i] = 'match_phrase'
+			}
+			if(!agent==null) {
+				newvalues[newfields.length-1] =  'pav_!DOMEO_NS!_createdBy.@type';
+				newparsed[newfields.length-1] = 'term'
+			}
+			
+			println '------------- ' + request.JSON.groupsIds;
+			boolean publicData = request.JSON.permissionsPublic; // (request.JSON.permissionsPublic?request.JSON.permissionsPublic:true);
+			boolean groupsData = request.JSON.permissionsGroups; // (request.JSON.permissionsGroups?request.JSON.permissionsGroups:true);
+			boolean privateData = request.JSON.permissionsPrivate // (request.JSON.permissionsPrivate?request.JSON.permissionsPrivate:true);
+			def groupsIds = request.JSON.groupsIds;
+			
+				
+			if(request.JSON.query) {
+				res = annotationSearchService.searchMultiple(newfields, newvalues, newparsed,
+					request.JSON.permissionsPublic==true, (request.JSON.permissionsPrivate==true)?"urn:person:uuid:"+userProfileId():null, groupsIds);
+				
+				println "1- " + JSON.parse(res)
+				println "1- " + JSON.parse(res).hits.hits;
+				
+				JSONObject r = JSON.parse(res);
+				def hits = r.hits.hits;
+				hits.each { hit ->
+					println 'hit: ' + hit._id
+					def annotationSetIndex = AnnotationSetIndex.findByMongoUuid(hit._id);				
+					if(annotationSetIndex!=null) {
+						println 'checking: ' + annotationSetIndex.individualUri
+						if(annotationPermissionService.isPermissionGranted(user, annotationSetIndex, privateData, groupsData, groupsIds, publicData)) {
+							println 'granted: ' + annotationSetIndex.individualUri
+							AnnotationSetItemWrapper annotationListItemWrapper = new AnnotationSetItemWrapper(annotationSetIndex: annotationSetIndex);
+							
+							if(globalCounter>=paginationOffset && globalCounter<(paginationOffset+paginationRange)) {
+								annotationListItemWrappers.add(annotationListItemWrapper);
+								allowedCounter++;
+							}
+						 
+							List<String> permissions = annotationPermissionService.getAnnotationSetPermissions(user.id, annotationSetIndex);
+							if (permissions.get(0)==IPermissionTypes.publicAccess) {
+								annotationListItemWrapper.permissionType = IPermissionTypes.publicAccess;
+							} else if (permissions.get(0)==IPermissionTypes.groupsAccess) {
+								annotationListItemWrapper.permissionType = IPermissionTypes.groupsAccess;
+							} else {
+								annotationListItemWrapper.permissionType = IPermissionTypes.privateAccess;
+							}
+							annotationListItemWrapper.isLocked = annotationPermissionService.isLocked(annotationSetIndex);
+							
+							globalCounter++
+						}
+					}
+				}			
+			}
+			AnnotationListResponse theResponse = new AnnotationListResponse(
+				paginationOffset: paginationOffset, paginationRange: paginationRange,
+				annotationListItemWrappers: annotationListItemWrappers, totalResponses: globalCounter);
+			JSON.use("deep")
+			render (theResponse as JSON);
+		}
+	}
+	
+	def search2 = {
+		def user = userProfile();
+		
 		List<AnnotationSetIndex> annotationListItemWrappers = new ArrayList<AnnotationSetIndex>();
 		if(request.JSON) {
 			def res;
@@ -532,9 +1502,9 @@ class AjaxPersistenceController {
 			println "Software " + request.JSON.agentSoftware
 			
 			def agent;
-			if(request.JSON.agentHuman=="checked" && request.JSON.agentSoftware !='checked') 
+			if(request.JSON.agentHuman=="checked" && request.JSON.agentSoftware !='checked')
 				agent = 'foafx:Person'
-			else if(request.JSON.agentHuman!="checked" && request.JSON.agentSoftware =='checked') 
+			else if(request.JSON.agentHuman!="checked" && request.JSON.agentSoftware =='checked')
 				agent = 'foafx:Software'
 				
 			if(request.JSON.query) {
@@ -543,7 +1513,7 @@ class AjaxPersistenceController {
 					String[] values = [request.JSON.query, agent]
 					
 					res = annotationSearchService.searchMultiple(fields , values,
-						 	(request.JSON.permissionsPublic=="checked")?true:false, (request.JSON.permissionsPrivate=="checked")?"urn:person:uuid:"+userProfileId():null);
+							 (request.JSON.permissionsPublic=="checked")?true:false, (request.JSON.permissionsPrivate=="checked")?"urn:person:uuid:"+userProfileId():null);
 				} else {
 					res = annotationSearchService.search("_all" , request.JSON.query,
 							(request.JSON.permissionsPublic=="checked")?true:false, (request.JSON.permissionsPrivate=="checked")?"urn:person:uuid:"+userProfileId():null);

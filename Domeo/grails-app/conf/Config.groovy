@@ -86,18 +86,20 @@ environments {
 			// http://logging.apache.org/log4j/1.2/apidocs/org/apache/log4j/PatternLayout.html
 			appenders {
 				// Uncomment the following line for a more detailed logging in development mode
-			    console name:'stdout', threshold: org.apache.log4j.Level.INFO, layout:pattern(conversionPattern: '%d{dd MMM yyyy HH:mm:ss,SSS} %c{2} %m%n')
+			    console name:'stdout', threshold: org.apache.log4j.Level.DEBUG, layout:pattern(conversionPattern: '%d{dd MMM yyyy HH:mm:ss,SSS} %c{2} %m%n')
 				//console name:'stdout', threshold: org.apache.log4j.Level.INFO, layout:pattern(conversionPattern: '%m%n')
 			}
+			
+			debug   "server.RealmVerifier",
+					"consumer.ConsumerManager",
+					'grails.app.controllers.org.mindinformatics.grails.domeo.persistence.ExportController',
+					'grails.app.controllers.org.mindinformatics.services.connector.yaleimagefinder.YaleImageFinderController'
             
             info    'grails.app', // Necessary for Bootstrap logging
                     'org.mindinformatics.grails.domeo.dashboard.security',
                     'org.mindinformatics.services.connector.pubmed.dataaccess',
-                    'org.mindinformatics.services.connector.pubmed'
-			
-			debug   "server.RealmVerifier",
-				    "consumer.ConsumerManager",
-                    'grails.app.controller.org.mindinformatics.grails.domeo.persistence.ExportController'
+                    'org.mindinformatics.services.connector.pubmed',
+					'grails.app.controllers.org.mindinformatics.grails.domeo.plugin.bibliography.BibliographyController'
 		
 			error  'org.codehaus.groovy.grails.web.servlet',  //  controllers
 				   'org.codehaus.groovy.grails.web.pages', //  GSP
@@ -109,7 +111,8 @@ environments {
 				   'org.codehaus.groovy.grails.orm.hibernate', // hibernate integration
 				   'org.springframework',
 				   'org.hibernate',
-				   'net.sf.ehcache.hibernate'
+				   'net.sf.ehcache.hibernate',
+					'grails.app.controllers.org.mindinformatics.grails.domeo.ErrorsController'
 		}
     }
     production {
@@ -159,23 +162,46 @@ environments {
 
 
 // Added by the Spring Security Core plugin:
-grails.plugins.springsecurity.userLookup.userDomainClassName = 'org.mindinformatics.grails.domeo.dashboard.security.User'
-grails.plugins.springsecurity.userLookup.authorityJoinClassName = 'org.mindinformatics.grails.domeo.dashboard.security.UserRole'
-grails.plugins.springsecurity.authority.className = 'org.mindinformatics.grails.domeo.dashboard.security.Role'
-grails.plugins.springsecurity.rememberMe.persistent = true
-grails.plugins.springsecurity.rememberMe.persistentToken.domainClassName = 'org.mindinformatics.grails.domeo.dashboard.security.PersistentLogin'
-grails.plugins.springsecurity.securityConfigType = "Annotation"
+grails.plugin.springsecurity.userLookup.userDomainClassName = 'org.mindinformatics.grails.domeo.dashboard.security.User'
+grails.plugin.springsecurity.userLookup.authorityJoinClassName = 'org.mindinformatics.grails.domeo.dashboard.security.UserRole'
+grails.plugin.springsecurity.authority.className = 'org.mindinformatics.grails.domeo.dashboard.security.Role'
+grails.plugin.springsecurity.rememberMe.persistent = true
+grails.plugin.springsecurity.rememberMe.persistentToken.domainClassName = 'org.mindinformatics.grails.domeo.dashboard.security.PersistentLogin'
+grails.plugin.springsecurity.securityConfigType = "Annotation"
+// http://grails-plugins.github.io/grails-spring-security-core/docs/manual/guide/newInV2.html
+grails.plugin.springsecurity.logout.postOnly = false
 
 // http://www.redtoad.ca/ataylor/2011/05/logging-spring-security-events-in-grails/
-grails.plugins.springsecurity.useSecurityEventListener = true
-grails.plugins.springsecurity.logout.handlerNames = ['rememberMeServices', 'securityContextLogoutHandler', 'securityEventListener']
+grails.plugin.springsecurity.useSecurityEventListener = true
+grails.plugin.springsecurity.logout.handlerNames = ['rememberMeServices', 'securityContextLogoutHandler', 'securityEventListener']
 
-grails.plugins.springsecurity.openid.domainClass = 'org.mindinformatics.grails.domeo.dashboard.security.OpenID'
+grails.plugin.springsecurity.openid.domainClass = 'org.mindinformatics.grails.domeo.dashboard.security.OpenID'
 
-grails.plugins.springsecurity.controllerAnnotations.staticRules = [
+// grails.plugins.springsecurity.providerNames = ['daoAuthenticationProvider', 'ldapAuthProvider', 'rememberMeAuthenticationProvider']
+grails.plugin.springsecurity.controllerAnnotations.staticRules = [
 	'/secure/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
+	'/secured/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
 	'/web/domeo': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
+	'/web/pdf': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
+	'/persistence/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
+	'/bibliography/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
+	'/ajaxPersistence/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
+	'/ajaxBibliographic/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
+	'/plugins/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
 	'/dashboard/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
+	'/agents/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
+	'/users/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
+	'/nif/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
+	'/bioPortal/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
+	'/profiles/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
+	'/persistence/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
 	'/managerDashboard/**': ['ROLE_MANAGER'],
-	'/adminDashboard/**': ['ROLE_ADMIN']
+	'/adminDashboard/**': ['ROLE_ADMIN'],
+	'/ajaxDashboard/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
+	'/retrievePmcImagesData/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
+	'/pubmed/**': ['permitAll'],
+	'/public/**': ['permitAll'],
+	'/index': ['ROLE_ADMIN'],
+	'/errors/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
+	'/yaleImageFinder/**': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_USER'],
 ]

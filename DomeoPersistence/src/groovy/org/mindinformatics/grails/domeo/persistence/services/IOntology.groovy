@@ -24,12 +24,15 @@ class IOntology {
 	static final pavVersionNumber = "pav:versionNumber";
 	
 	static final annotationComment = "ao:Comment";
+	static final annotationLinearComment = "ao:LinearComment";
 	static final annotationDescription = "ao:Description";
 	static final annotationHighlight = "ao:Highlight";
 	static final annotationQualifier = "ao:Qualifier";
 	static final annotationLink = "ao:Link";
 	static final annotationPostIt = "ao:PostIt";
 	static final annotationAntibody = "ao:AntibodyAnnotation";
+	static final annotationCuration = "ao:Curation";
+	static final annotationMicroPublication = "ao:MicroPublicationAnnotation";
 	
 	static final hasTarget = "ao:context";
 	static final selector = "ao:hasSelector";
@@ -37,6 +40,7 @@ class IOntology {
 	static final specificResource = "ao:SpecificResource";
 	
 	static final annotationSet = "ao:AnnotationSet";
+	static final discussionSet = "domeo:DiscussionSet";
 	static final selectorAnnotation = "domeo:AnnotationSelector";
 	static final selectorImage = "domeo:ImageInDocumentSelector";
 	static final selectorTarget = "domeo:TargetSelector";

@@ -29,7 +29,7 @@ import org.mindinformatics.domeo.grails.plugins.utils.MiscUtils
 */
 class BioPortalController {
 
-    static String DEFAULT_API_KEY = 'fef6b9da-4b3b-46d2-9d83-9a1a718f6a22';
+    //static String DEFAULT_API_KEY = 'fef6b9da-4b3b-46d2-9d83-9a1a718f6a22';
     static int[] DEFAULT_ANNOTATOR_ONTOLOGIES = [1062, 1070, 1009, 1084];
     static int[] DEFAULT_SEARCH_ONTOLOGIES = [1062, 1070, 1009, 1084];
     
@@ -38,17 +38,19 @@ class BioPortalController {
     // 1062 Protein Ontology
     // 1070 Gene Ontology (GO)
     
+	def grailsApplication;
     def domeoConfigAccessService;   // To access configurations
     def mailingService;             // Mailing service used for notifications of failure
     
 	def jsonBioPortalTermsRetrievalService;
 	def jsonBioPortalAnnotatorService;
+	def jsonBioPortalVocabulariesRetrievalService;
 	
 	/**
 	 * Example: http://localhost:8080/ConnectorServiceBioPortal/BioPortal/search?textQuery=app&ontologies=1084,1062&pagesize=10&pagenumber=3
 	 */
 	def search = {
-		String apikey = DEFAULT_API_KEY;
+		String apikey = grailsApplication.config.domeo.plugins.connector.bioportal.apikey;
 		String textQuery = params.textQuery;
 		String ontologies = params.ontologies;
 		String pageNumber = params.pagenumber;
@@ -80,17 +82,35 @@ class BioPortalController {
 	}
     
     def ontologies = {
-        render(status: "500", text: "BioPortal Ontologies not implemented yet");
+		String apikey = grailsApplication.config.domeo.plugins.connector.bioportal.apikey;
+		
+		try {
+			JSONObject jsonResult = jsonBioPortalVocabulariesRetrievalService.retrieveOntologies(apikey);
+			render(contentType:'text/json', encoding:MiscUtils.DEFAULT_ENCODING,  text: jsonResult.toString());
+		} catch(Exception e) {
+			mailingService.notifyProblemByEmail("BioPortal Annotator Vocabularies", "[apikey:"+ apikey + "] " + e.getMessage());
+			render(status: "500", text: "BioPortal vocabularies: " + e.getMessage());
+		}
     }
 	
 	def textmine = {
 		String url = params.url;
-		String apikey = DEFAULT_API_KEY;
+		String apikey = grailsApplication.config.domeo.plugins.connector.bioportal.apikey;
 		String textContent = params.textContent;
 		String ontologies = params.ontologies;
+		
+		def parametrization = [:];
+		
+		if(params.longestOnly) parametrization.put("longestOnly", params.longestOnly); else parametrization.put("longestOnly", "false");
+		if(params.wholeWordOnly) parametrization.put("wholeWordOnly", params.wholeWordOnly); else parametrization.put("wholeWordOnly", "true");
+		if(params.filterNumbers) parametrization.put("filterNumbers", params.filterNumbers); else parametrization.put("filterNumbers", "true");
+		if(params.withDefaultStopWords) parametrization.put("withDefaultStopWords", params.withDefaultStopWords); else parametrization.put("withDefaultStopWords", "false");
+		if(params.isStopWordsCaseSensitive) parametrization.put("isStopWordsCaseSensitive", params.isStopWordsCaseSensitive); else parametrization.put("isStopWordsCaseSensitive", "false");
+		if(params.scored) parametrization.put("scored", params.scored); else parametrization.put("scored", "true");
+		if(params.withSynonyms) parametrization.put("withSynonyms", params.withSynonyms); else parametrization.put("withSynonyms", "true");
         
         try {
-    		JSONObject jsonResult = jsonBioPortalAnnotatorService.textMine(url, apikey, DEFAULT_ANNOTATOR_ONTOLOGIES, textContent);
+    		JSONObject jsonResult = jsonBioPortalAnnotatorService.textMine(url, apikey, DEFAULT_ANNOTATOR_ONTOLOGIES, textContent, parametrization);
     		render(contentType:'text/json', encoding:MiscUtils.DEFAULT_ENCODING,  text: jsonResult.toString());
         } catch(Exception e) {
             mailingService.notifyProblemByEmail("BioPortal Annotator", "[apikey:"+ apikey + ", url:"+ url + 

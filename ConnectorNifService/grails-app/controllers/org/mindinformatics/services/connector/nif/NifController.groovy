@@ -117,11 +117,16 @@ class NifController {
 		String content = params.content;
 		String url = params.url;
 		String apikey = params.apikey;
-		String ontologiesIn = params.ontologiesIn;
-		String ontologiesOut = params.ontologiesOut
+		String longestOnly = params.longestOnly;
+		String includeAbbrev = params.includeAbbrev;
+		String includeAcronym = params.includeAcronym;
+		String includeNumbers = params.includeNumbers;
+		String categoriesIn = params.categoriesIn;
+		String categoriesOut = params.categoriesOut;
 		
 		try {
-			JSONObject jsonResult = nifAnnotatorJsonService.annotate(url, content, ontologiesIn, ontologiesOut);
+			JSONObject jsonResult = nifAnnotatorJsonService.annotate(url, content, categoriesIn, categoriesOut, longestOnly,
+				includeAbbrev, includeAcronym, includeNumbers);
 			render(contentType:'text/json', encoding:MiscUtils.DEFAULT_ENCODING,  text: jsonResult.toString());
 		} catch (ConnectorHttpResponseException e) {
 			mailingService.notifyProblemByEmail("NIF Annotator", e.getMessage());

@@ -1,8 +1,8 @@
 import org.codehaus.groovy.grails.commons.ApplicationAttributes
 import org.mindinformatics.grails.domeo.client.profiles.model.DomeoClientProfile
 import org.mindinformatics.grails.domeo.client.profiles.model.DomeoClientProfileEntry
-import org.mindinformatics.grails.domeo.client.profiles.model.UserCurrentDomeoClientProfile
 import org.mindinformatics.grails.domeo.client.profiles.model.UserAvailableDomeoClientProfile
+import org.mindinformatics.grails.domeo.client.profiles.model.UserCurrentDomeoClientProfile
 import org.mindinformatics.grails.domeo.dashboard.circles.Circle
 import org.mindinformatics.grails.domeo.dashboard.circles.UserCircle
 import org.mindinformatics.grails.domeo.dashboard.groups.DefaultGroupPrivacy
@@ -19,7 +19,6 @@ import org.mindinformatics.grails.domeo.dashboard.security.DefaultRoles
 import org.mindinformatics.grails.domeo.dashboard.security.Role
 import org.mindinformatics.grails.domeo.dashboard.security.User
 import org.mindinformatics.grails.domeo.dashboard.security.UserRole
-
  
 class BootStrap {
 	
@@ -309,7 +308,13 @@ class BootStrap {
 		separator();
 		log.info   '** Initializing profiles'
 		separator();
+		
+		// -------------------
+		//  COMPLETE PROFILES
+		// -------------------
 		log.info   'Initializing complete biomedical profile'
+		
+		// Plugins
 		def completeProfile = DomeoClientProfile.findByName("Complete Biomedical Profile")?: new DomeoClientProfile(
 			name: 'Complete Biomedical Profile',
 			description: 'All the tools that Domeo has to offer for biomedicine',
@@ -325,6 +330,12 @@ class BootStrap {
 		DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.plugins.annotation.nif.antibodies")?: new DomeoClientProfileEntry(
 			profile: completeProfile,
 			plugin: "org.mindinformatics.gwt.domeo.plugins.annotation.nif.antibodies",
+			status: "enabled"
+		).save(failOnError: true, flash: true)
+		
+		DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.plugins.annotation.micropubs")?: new DomeoClientProfileEntry(
+			profile: completeProfile,
+			plugin: "org.mindinformatics.gwt.domeo.plugins.annotation.micropubs",
 			status: "enabled"
 		).save(failOnError: true, flash: true)
 		
@@ -358,6 +369,116 @@ class BootStrap {
 			status: "enabled"
 		).save(failOnError: true, flash: true)
 		
+		// Features
+		DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.branding")?: new DomeoClientProfileEntry(
+			profile: completeProfile,
+			plugin: "org.mindinformatics.gwt.domeo.feature.branding",
+			status: "disabled",
+			type: "feature"
+		).save(failOnError: true, flash: true)
+		
+		if(DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.addressbar")) {
+			DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.addressbar").status = "enabled"
+		} else {
+			new DomeoClientProfileEntry(
+				profile: completeProfile,
+				plugin: "org.mindinformatics.gwt.domeo.feature.addressbar",
+				status: "enabled",
+				type: "feature"
+			).save(failOnError: true, flash: true)
+		}
+		
+		DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.analyze")?: new DomeoClientProfileEntry(
+			profile: completeProfile,
+			plugin: "org.mindinformatics.gwt.domeo.feature.analyze",
+			status: "enabled",
+			type: "feature"
+		).save(failOnError: true, flash: true)
+		
+		DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.preferences")?: new DomeoClientProfileEntry(
+			profile: completeProfile,
+			plugin: "org.mindinformatics.gwt.domeo.feature.preferences",
+			status: "enabled",
+			type: "feature"
+		).save(failOnError: true, flash: true)
+		
+		if(DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.sharing")) {
+			DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.sharing").status = "enabled"
+		} else {
+			new DomeoClientProfileEntry(
+				profile: completeProfile,
+				plugin: "org.mindinformatics.gwt.domeo.feature.sharing",
+				status: "enabled",
+				type: "feature"
+			).save(failOnError: true, flash: true)
+		}
+		
+		DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.help")?: new DomeoClientProfileEntry(
+			profile: completeProfile,
+			plugin: "org.mindinformatics.gwt.domeo.feature.help",
+			status: "enabled",
+			type: "feature"
+		).save(failOnError: true, flash: true)
+		
+		if(DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.document.general.reference.self")) {
+			DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.document.general.reference.self").status = "enabled"
+		} else {
+			new DomeoClientProfileEntry(
+				profile: completeProfile,
+				plugin: "org.mindinformatics.gwt.domeo.feature.document.general.reference.self",
+				status: "enabled",
+				type: "feature"
+			).save(failOnError: true, flash: true)
+		}
+		
+		if(DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.document.general.qualifiers.self")) {
+			DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.document.general.qualifiers.self").status = "enabled"
+		} else {
+			new DomeoClientProfileEntry(
+				profile: completeProfile,
+				plugin: "org.mindinformatics.gwt.domeo.feature.document.general.qualifiers.self",
+				status: "enabled",
+				type: "feature"
+			).save(failOnError: true, flash: true)
+		}
+		
+		if(DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.document.general.bibliography")) {
+			DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.document.general.bibliography").status = "enabled"
+		} else {
+			new DomeoClientProfileEntry(
+				profile: completeProfile,
+				plugin: "org.mindinformatics.gwt.domeo.feature.document.general.bibliography",
+				status: "enabled",
+				type: "feature"
+			).save(failOnError: true, flash: true)
+		}
+		
+		if(DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.document.general.recommendations")) {
+			DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.document.general.recommendations").status = "disabled"
+		} else {
+			new DomeoClientProfileEntry(
+				profile: completeProfile,
+				plugin: "org.mindinformatics.gwt.domeo.feature.document.general.recommendations",
+				status: "disabled",
+				type: "feature"
+			).save(failOnError: true, flash: true)
+		}
+		
+		// If not present the text mining summary panel will display
+		if(DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.textmining.summary")) {
+			DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.feature.textmining.summary").status = "enabled"
+		} else {
+			new DomeoClientProfileEntry(
+				profile: completeProfile,
+				plugin: "org.mindinformatics.gwt.domeo.feature.textmining.summary",
+				status: "enabled",
+				type: "feature"
+			).save(failOnError: true, flash: true)
+		}
+		
+		// ----------------
+		//  BASIC PROFILES
+		// ----------------
 		separator();
 		log.info   'Initializing basic profiles'
 		def simpleProfile = DomeoClientProfile.findByName("Simple profile")?: new DomeoClientProfile(

@@ -9,11 +9,13 @@ grails.project.source.level = 1.6
 grails.plugin.location.'af-shared' = '../AfShared'
 grails.plugin.location.'domeo-dashboard' = '../DomeoDashboard'
 grails.plugin.location.'domeo-persistence' = '../DomeoPersistence'
+grails.plugin.location.'domeo-bibliography' = '../DomeoBibliography'
 grails.plugin.location.'domeo-client-wrapper' = '../DomeoClientWrapper'
 grails.plugin.location.'domeo-grails-plugins-utils' = '../DomeoGrailsPluginsUtils'
 grails.plugin.location.'connector-nif-service' = '../ConnectorNifService'
 grails.plugin.location.'connector-pubmed-service' = '../ConnectorPubmedService'
 grails.plugin.location.'connector-service-bioportal' = '../ConnectorServiceBioPortal'
+grails.plugin.location.'connector-yale-image-finder' = '../ConnectorYaleImageFinder'
 
 grails.project.dependency.resolution = {
     // inherit Grails' default dependencies
@@ -46,6 +48,14 @@ grails.project.dependency.resolution = {
 		provided 'mysql:mysql-connector-java:5.1.13'
 		runtime 'mysql:mysql-connector-java:5.1.13'
         compile 'com.googlecode.json-simple:json-simple:1.1'
+		
+		compile ("org.apache.jena:jena-core:2.11.0") {
+			excludes 'slf4j-api', 'xercesImpl'
+		}
+		compile ("org.apache.jena:jena-arq:2.9.4") {
+			excludes 'slf4j-api', 'xercesImpl'
+		}
+		
     }
 
     plugins {
@@ -59,5 +69,8 @@ grails.project.dependency.resolution = {
         //runtime ":yui-minify-resources:0.1.4"
 
         build ":tomcat:$grailsVersion"
+		
+		compile ":spring-security-core:2.0-RC2"
+		compile ":spring-security-openid:2.0-RC1"
     }
 }
