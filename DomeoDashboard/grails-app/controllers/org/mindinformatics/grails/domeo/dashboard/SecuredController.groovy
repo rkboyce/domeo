@@ -51,6 +51,36 @@ class SecuredController {
 			userGroups: usersManagementService.getUserGroups(loggedUser),
 			menuitem: 'browser', navitem: 'annotationSets']);
 	}
+	
+	def annotationSet = {
+		def loggedUser = injectUserProfile();
+		render(view:'annotationSet', model:[loggedUser: loggedUser, appBaseUrl: request.getContextPath(),
+			userGroups: usersManagementService.getUserGroups(loggedUser), setUri: params.id,
+			menuitem: 'browser', navitem: 'annotationSet']);
+	}
+	
+	def annotationSetHistory = {
+		def loggedUser = injectUserProfile();
+		render(view:'annotationSetHistory', model:[loggedUser: loggedUser, appBaseUrl: request.getContextPath(),
+			userGroups: usersManagementService.getUserGroups(loggedUser), setUri: params.id,
+			menuitem: 'browser', navitem: 'annotationSetHistory']);
+	}
+	
+	def annotationSetsByUrl = {
+		
+		def error = '';
+		def url = params.url;
+		if(!url) error = "!! No URL defined !!" 
+		
+		// Query the lineages the user can access (newst to oldest)
+		// -> pagination?
+		// -> permission facets?
+		def loggedUser = injectUserProfile();
+		render(view:'annotationSetsByUrl', model:[loggedUser: loggedUser, appBaseUrl: request.getContextPath(),
+			loggedUserRoles: usersManagementService.getUserRoles(loggedUser),
+			userGroups: usersManagementService.getUserGroups(loggedUser), url: url, error: error,
+			menuitem: 'browser', navitem: 'annotationSets']);
+	}
 
 	def search = {
 		def loggedUser = injectUserProfile();
@@ -60,7 +90,10 @@ class SecuredController {
 			offset = params.offset;
 		}
 		
-		render(view:'search', model:[menuitem: 'home', loggedUser: loggedUser, appBaseUrl: request.getContextPath(),
+		println '>>>>>>>>>>>>>>>> ' + params.query
+		println '>>>>>>>>>>>>>>>> ' + params.offset
+		
+		render(view:'search', model:[menuitem: 'search', loggedUser: loggedUser, appBaseUrl: request.getContextPath(),
 			loggedUserRoles: usersManagementService.getUserRoles(loggedUser),
 			userGroups: usersManagementService.getUserGroups(loggedUser),
 			query: params.query, offset: offset, params: params]);

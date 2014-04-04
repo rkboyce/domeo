@@ -12,20 +12,26 @@
 $(document).ready(function() {
 	//hideBasicInfoComponents();
 	
+	console.log(getURLParameter('query'));
+	console.log(getURLParameter('offset'));
+
+	console.log('${query}');
+	console.log('${offset}');
+	
 	$('#queryField').bind("enterKey",function(e){
-	   searchAnnotation();
+		e.preventDefault();
+	    searchAnnotation();
 	});
 	$('#queryField').keyup(function(e){
 	    if(e.keyCode == 13)
 	    {
+	    	e.preventDefault();
 	        searchAnnotation();
 	    }
 	});
 
-	//$("#publicFilter").attr('checked', true);
-	//$("#privateFilter").attr('checked', true);
-
-	
+	$('#publicFilter').prop('checked', true);
+	$('#privateFilter').prop('checked', true);
 	
 	try {
 		$("#domeoSearch form").submit(function(e) {
@@ -35,54 +41,69 @@ $(document).ready(function() {
 	} catch(e) {
 		alert(e);
 	}
-	//alert('ready');
 
 	if('${query}') {
 		$('#queryField').val(decodeURI('${query}'));
 		var offset = ('${offset}'.length>0?'${offset}':0);
-		if($('#queryField').val() && ${offset}>0) searchAnnotation(${offset});
+		if($('#queryField').val() && ${offset}>0) searchAnnotation(null,${offset});
 		else searchAnnotation();
 	}
 });
 
-function searchAnnotation(paginationOffset, paginationRange) {
+function getURLParameter(name) {
+    return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search)||[,""])[1].replace(/\+/g, '%20'))||null;
+}
+
+function loadData(url) {
+	//loadAnnotationSets(url, paginationOffset, paginationRange);
+	document.location = '${appBaseUrl}/secured/annotationSetsByUrl?url=' + encodeURIComponent(url);
+}
+
+
+function searchAnnotation(event, paginationOffset, paginationRange) {
+	if(event) {
+		event.preventDefault();
+	}
+	
 	var query = $('#queryField').val();
 	if(!query) {
 		alert('No search criteria defined!');
 		return
 	}
 
-	//alert($("#publicFilter").val());
-	
 	// Modify the url
-	var url = "home?query="+encodeURI(query);
+	var url = "search?query="+encodeURI(query);
 	if(paginationOffset) url = url + "&offset=" + paginationOffset;
 	if(paginationRange) url = url + "&range=" + paginationRange;
-	window.history.pushState("", "", encodeURI(url));
+	window.history.pushState({query: query}, "Domeo search: " + query, encodeURI(url));
+	
 
 	var groups = '';
 	$(".groupCheckbox").each(function(i) {
 		if($(this).is(':checked')) 
-			groups += $(this).attr('value') + " ";
+			groups += 'urn:group:uuid:' + $(this).attr('value') + " ";
 	});
 
 	var dataToSend = { 
 		userId: '${loggedUser.id}', 
 		query: query,
-		paginationOffset: paginationOffset, 
+		paginationOffset: paginationOffset?paginationOffset:'', 
 		paginationRange: paginationRange, 
 		permissionsPublic: $("#publicFilter").is(':checked'), 
-		permissionsGroups: $("#groupsFilter").is(':checked'), 
+		permissionsGroups: (groups.length>0?true:false), 
 		groupsIds: groups,
 		permissionsPrivate: $("#privateFilter").is(':checked'),
 		agentHuman: $("#agentHuman").attr('checked')!==undefined, 
 		agentSoftware: $("#agentSoftware").attr('checked')!==undefined, 
 	};
-	
+
+	console.log(dataToSend);
 	$("#progressIcon").show();
 	$("#resultsList").html("");
 	$('.resultsPaginationTop').empty();
 	$('.resultsPaginationBottom').empty(); 
+
+	JSON.stringify(dataToSend)
 	
 	var savingRequest = $.ajax({
 		type: "POST",
@@ -91,13 +112,14 @@ function searchAnnotation(paginationOffset, paginationRange) {
 		url: "${request.getContextPath()}/ajaxPersistence/searchAnnotationSets",
 		data: JSON.stringify(dataToSend)
 	}).done(function( data ) {
+
 		$("#progressIcon").hide();
-		
 		$("#resultsList").html("");
 		$('.resultsPaginationTop').empty();
 		$('.resultsPaginationBottom').empty(); 
 		
-
+		
+		
 		if(data.annotationListItemWrappers.length==0) {
 			$('#resultsList').append("No results<br/>");
 		} 
@@ -126,8 +148,8 @@ function searchAnnotation(paginationOffset, paginationRange) {
 		var paginationHtml = '';
   		//var paginationHtml = '<a href="#" class="page">first</a>';
   		for(var x=0; x<numberButtons; x++) {
-	  		if(x==currentPage) paginationHtml += '<a href="#" class="page active">' + (x+1) + '</a>';
-	  		else paginationHtml += '<a href="#" class="page" onclick="searchAnnotation(' + (x*data.paginationRange)+ ')"">' + (x+1) + '</a>';
+	  		if(x==currentPage) paginationHtml += '<a href="" class="page active" onclick="return false;">' + (x+1) + '</a>';
+	  		else paginationHtml += '<a href="" class="page" onclick="searchAnnotation(event,' + (x*data.paginationRange)+ ')";return false;>' + (x+1) + '</a>';
 	  	}
 
   		$('.resultsPaginationTop').append(paginationHtml);	  		
@@ -200,12 +222,47 @@ function getProvenanceCreator(item) {
 }
 
 function getProvenanceDate(item) {
-	return 'Last saved on ' + item.createdOn + ' with v. ' + item.versionNumber;
+	return 'Last saved on ' + item.annotationSetIndex.createdOn + ' with v. ' + item.annotationSetIndex.versionNumber;
 }
 
 function getStats(item) {
 	return "<span style='font-size:18px; padding-right: 5px;'>" + item.annotationSetIndex.size + "</span>" + (item.annotationSetIndex.size!=1?'items':'item') + displayLock(item.isLocked);
 }
+
+function edit(annotationId, url) {
+	document.location = '${appBaseUrl}/web/domeo?url=' + encodeURIComponent(url) + '&setId=' + encodeURIComponent(annotationId);
+}
+
+function display(userId) {
+	document.location = '${appBaseUrl}/secure/user/' + userId;
+}
+
+function displayUser(userId) {
+	document.location = '${appBaseUrl}/secure/user/' + userId;
+}
+
+function displaySet(annotationUri) {
+	document.location = '${appBaseUrl}/secured/annotationSet/' + encodeURIComponent(annotationUri);
+}
+
+function displayHistory(annotationSetUri) {
+	document.location = '${appBaseUrl}/secured/annotationSetHistory/' + encodeURIComponent(annotationSetUri);
+}
+
+function displayShare(annotationId) {
+	open_in_new_tab('${appBaseUrl}/share/set/' + encodeURIComponent(annotationId));
+}
+
+function displayByUrlShare(url) {
+	open_in_new_tab('${appBaseUrl}/share/sets/?url=' + encodeURIComponent(url));
+}
+
+function open_in_new_tab(url)
+{
+  var win=window.open(url, '_blank');
+  win.focus();
+}
+
 
 function displayLock(lock) {
 	if(lock=='true') {
@@ -485,14 +542,19 @@ function retrieveItems(setId, setIndividualUri, query) {
 			<div id="contributors" style="border-top: 3px solid #ddd; padding-bottom: 2px;"></div>
 	    	<div style="padding: 5px; padding-top: 10px; ">
 			    <input id="publicFilter" type="checkbox" name="public"> Public<br>
-			    <input id="groupsFilter" type="checkbox" name="groups"> Groups<br>			    
-			  	<div id="groupsList">
-			  		<g:each in="${userGroups}" status="i" var="usergroup">
-			  			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="checkbox" name="${usergroup.group.name}" class="groupCheckbox" value="${usergroup.group.id}"> ${usergroup.group.name}<br/>
-			  		</g:each>
-			  	</div>
-				<input id="privateFilter" type="checkbox" name="private"> Private<br/><br/>
-				<div align="center"><input value="Refresh" title="Search" name="lucky" type="submit" id="btn_i" onclick="loadAnnotationSets('', 0, '')" class="btn btn-success"></div>
+			    <input id="privateFilter" type="checkbox" name="private"> Private<br/>
+			    <%--<input id="groupsFilter" type="checkbox" name="groups"> Groups<br>		--%>
+			  
+			  	<g:if test="${userGroups.size()>0}">
+				  	<div id="groupsList">
+				  	 	<br/>Groups<br/>	    
+				  		<g:each in="${userGroups}" status="i" var="usergroup">
+				  			<input type="checkbox" name="${usergroup.group.name}" class="groupCheckbox" value="${usergroup.group.id}"> ${usergroup.group.name}<br/>
+				  		</g:each>
+				  	</div>
+			  	</g:if>
+				<br/>
+				<div align="center"><input value="Refresh" title="Search" name="lucky" type="submit" id="btn_i" onclick="searchAnnotation()" class="btn btn-success"></div>
 			</div>
 	  	</div>
 	  	<div id="progressIcon" align="center" style="padding: 5px; padding-left: 10px; display: none;">

@@ -143,11 +143,11 @@
 	}
 
 	function displaySet(annotationUri) {
-		document.location = '${appBaseUrl}/secure/annset/' + encodeURIComponent(annotationUri);
+		document.location = '${appBaseUrl}/secured/annotationSet/' + encodeURIComponent(annotationUri);
 	}
 
 	function displayHistory(annotationSetUri) {
-		document.location = '${appBaseUrl}/secure/setHistory/' + encodeURIComponent(annotationSetUri);
+		document.location = '${appBaseUrl}/secured/annotationSetHistory/' + encodeURIComponent(annotationSetUri);
 	}
 
 	function displayShare(annotationId) {
@@ -216,7 +216,11 @@
 		if(temp.length>60) {
 			u = temp.substring(0, 30) + '...' + temp.substring(temp.length-25);
 		}
-		return "On  <a href='#' onclick='javascript:loadData(\""+item.lastAnnotationSetIndex.lastVersion.annotatesUrl+"\")'>"+ u + "</a> ";
+		return "On  <a href='#' onclick='javascript:browseAnnotationSetsByUrl(\""+item.lastAnnotationSetIndex.lastVersion.annotatesUrl+"\")'>"+ u + "</a> ";
+	}
+
+	function browseAnnotationSetsByUrl(url) {
+		document.location = '${appBaseUrl}/secured/annotationSetsByUrl?url=' + encodeURIComponent(url);
 	}
 
 	function getTargetOut(item) {
@@ -263,7 +267,8 @@
 
 	function loadAnnotationSets(url, paginationOffset, paginationRange) {
 		
-		
+		//
+
 		$("#resultsList").empty();
 		$('.resultsPaginationTop').empty();
 		$('.resultsPaginationBottom').empty(); 
@@ -535,16 +540,19 @@
 				<div id="contributors" style="border-top: 3px solid #ddd; padding-bottom: 2px;"></div>
 		    	<div style="padding: 5px; padding-top: 10px; ">
 				    <input id="publicFilter" type="checkbox" name="vehicle" checked="checked"> Public<br>
-				    <input id="groupsFilter" type="checkbox" name="vehicle" > Groups<br>
+				     <input id="privateFilter" type="checkbox" name="private"> Private<br/>
 				    
+				   <g:if test="${userGroups.size()>0}">
 				  	<div id="groupsList">
+				  	 	<br/>Groups<br/>	    
 				  		<g:each in="${userGroups}" status="i" var="usergroup">
-				  			&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="checkbox" name="${usergroup.group.name}" class="groupCheckbox" value="${usergroup.group.id}"> ${usergroup.group.name}<br/>
+				  			<input type="checkbox" name="${usergroup.group.name}" class="groupCheckbox" value="${usergroup.group.id}"> ${usergroup.group.name}<br/>
 				  		</g:each>
 				  	</div>
-				    
-					<input id="privateFilter" type="checkbox" name="vehicle" checked="checked"> Private<br/><br/>
-					<div align="center"><input value="Refresh" title="Search" name="lucky" type="submit" id="btn_i" onclick="loadAnnotationSets('', 0, '')" class="btn btn-success"></div>
+			  	</g:if>
+				<br/>					
+				
+				<div align="center"><input value="Refresh" title="Search" name="lucky" type="submit" id="btn_i" onclick="loadAnnotationSets('', 0, '')" class="btn btn-success"></div>
 				</div>
 		  	</div>
  		 

@@ -2,6 +2,9 @@ class UrlMappings {
 
 	static mappings = {
 		
+		//"/user/account" (controller:"/secured", action: "userAccount")
+		//"/user/settings" (controller:"/secured", action: "userSettings")
+		
 		"/users/$id/info" (controller:"/users", action: "info") 
 		"/users/$id/groups" (controller:"/users", action: "groups")
 		"/agents/$id/info" (controller:"/agents", action: "info")
@@ -15,7 +18,11 @@ class UrlMappings {
 		"/user/$id" (controller:"/dashboard", action: "showProfile")
 		
 		"/pubmed/$action?/$id" (controller:"/pubmed")
-		"/bioportal/$action" (controller:"/bioPortal")
+		
+		//"/ncbo/$action" (controller:"/bioPortal")
+		"/ncbo/textmine" (controller:"/bioPortalConnector", action: "/annotate")
+		"/ncbo/$action" (controller:"/bioPortalConnector")
+		
 		"/nif/$action" (controller:"/nif")
 		
 		/*
@@ -45,13 +52,13 @@ class UrlMappings {
 		
 		
 		"/secure/" {
-			controller = 'secure'
+			controller = 'secured'
 			action = 'index'
 		}
 		"/specs" (view:"/index")
  
 		"/" {
-			controller = 'secure'
+			controller = 'secured'
 			action = 'index'
 		}
 		"500"(view:'/error')

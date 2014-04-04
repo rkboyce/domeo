@@ -15,6 +15,7 @@ grails.plugin.location.'domeo-grails-plugins-utils' = '../DomeoGrailsPluginsUtil
 grails.plugin.location.'connector-nif-service' = '../ConnectorNifService'
 grails.plugin.location.'connector-pubmed-service' = '../ConnectorPubmedService'
 grails.plugin.location.'connector-service-bioportal' = '../ConnectorServiceBioPortal'
+grails.plugin.location.'connector-bioportal-service' = '../ConnectorBioPortalService'
 grails.plugin.location.'connector-yale-image-finder' = '../ConnectorYaleImageFinder'
 
 grails.project.dependency.resolution = {
@@ -32,7 +33,7 @@ grails.project.dependency.resolution = {
         grailsHome()
         grailsCentral()
         mavenCentral()
-
+        mavenRepo 'http://repo.spring.io/milestone'
         // uncomment these to enable remote dependency resolution from public Maven repositories
         //mavenCentral()
         //mavenLocal()
