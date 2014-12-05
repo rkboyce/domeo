@@ -47,7 +47,8 @@
 							<li><g:link controller="dashboard" action="index">Dashboard</g:link></li>
 						</g:if>
 					</g:each>
-					<li><a href="#contact"><img src="${resource(dir:'images/secure',file:'exit.png',plugin:'users-module')}" title="Logout" /> </a></li>
+<!--					<li><a href="#contact"><img src="${resource(dir:'images/secure',file:'exit.png',plugin:'users-module')}" title="Logout" /> </a></li> -->
+<li><g:link controller="logout" action="index">Logout</g:link></li>
 					
 				</ul>
 	
