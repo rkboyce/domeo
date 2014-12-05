@@ -27,16 +27,6 @@
 	$(document).ready(function() {
 		$('#progressIcon').css("display","block");
 
-		$.ajax({
-			url: "${appBaseUrl}/ajaxPersistence/stats",
-	  	  	success: function(data){
-		  	  	if(data) {
-		  	  		$('#domeoNumberOfAnnotations').text(data.numberofanns);
-		  	  		$('#domeoNumberOfAnnotationSets').text(data.numberofsets);
-		  	  		$('#domeoNumberOfAnnotatedResources').text(data.numberofreso);
-		  	  	}
-	  	  	}
-		});
 
 	});
 </script>
