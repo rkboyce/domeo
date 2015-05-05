@@ -265,9 +265,9 @@ class BootStrap {
 			status: "enabled"
 		).save(failOnError: true, flash: true)
 
-		DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.plugins.annotation.expertstudy_pDDI")?: new DomeoClientProfileEntry(
+		DomeoClientProfileEntry.findByProfileAndPlugin(completeProfile, "org.mindinformatics.gwt.domeo.plugins.annotation.ddi")?: new DomeoClientProfileEntry(
 			profile: completeProfile,
-			plugin: "org.mindinformatics.gwt.domeo.plugins.annotation.expertstudy_pDDI",
+			plugin: "org.mindinformatics.gwt.domeo.plugins.annotation.ddi",
 			status: "enabled"
 		).save(failOnError: true, flash: true)
 
@@ -421,9 +421,9 @@ class BootStrap {
 		).save(failOnError: true, flash: true)
 
 
-                DomeoClientProfileEntry.findByProfileAndPlugin(DDIProfile, "org.mindinformatics.gwt.domeo.plugins.annotation.expertstudy_pDDI")?: new DomeoClientProfileEntry(
+                DomeoClientProfileEntry.findByProfileAndPlugin(DDIProfile, "org.mindinformatics.gwt.domeo.plugins.annotation.ddi")?: new DomeoClientProfileEntry(
 			profile: DDIProfile,
-			plugin: "org.mindinformatics.gwt.domeo.plugins.annotation.expertstudy_pDDI",
+			plugin: "org.mindinformatics.gwt.domeo.plugins.annotation.ddi",
 			status: "enabled"
 		).save(failOnError: true, flash: true)
 		
