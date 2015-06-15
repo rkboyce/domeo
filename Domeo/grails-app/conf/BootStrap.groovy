@@ -495,7 +495,13 @@ class BootStrap {
                 UserAvailableDomeoClientProfile.findByUserAndProfile(accountkatrina, SPLProfile)?: new UserAvailableDomeoClientProfile(
 			user: accountkatrina,
 			profile: SPLProfile
-		).save(failOnError: true, flash: true) }
+		).save(failOnError: true, flash: true) 
+
+		UserAvailableDomeoClientProfile.findByUserAndProfile(accountkatrina, DDIProfile)?: new UserAvailableDomeoClientProfile(
+			user: accountkatrina,
+			profile: DDIProfile
+		).save(failOnError: true, flash: true)
+		}
                 
 
                 def accountphilp = User.findByUsername('philempey')
