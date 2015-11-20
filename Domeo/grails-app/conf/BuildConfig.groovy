@@ -79,8 +79,5 @@ grails.project.dependency.resolution = {
 
 gwt {
     version = "2.4.0"
-    run.args = {
-    	     jvmarg(value: "-Xms256m")
-    	     jvmarg(value: "-Xmx512m")
     }
-}
+

@@ -39,7 +39,7 @@
 	   var jsonformat = "true";
 	   
 	   var testFiles = "true";
-	   var localResources = "true";
+	   <!-- var localResources = "true"; -->
 	   var provideExamplesUrls = "${grailsApplication.config.domeo.test.example.urls}";
 	   var defaultSetPrivacy = "${grailsApplication.config.domeo.default.annotationset.privacy}";
 

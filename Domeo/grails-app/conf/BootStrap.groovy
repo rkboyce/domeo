@@ -472,7 +472,7 @@ class BootStrap {
 		).save(failOnError: true, flash: true)
 
 		
-
+		// ningyifan profile
 		log.info   'yin2 profiles'
 		UserAvailableDomeoClientProfile.findByUserAndProfile(accountyin2, DDIProfile)?: new UserAvailableDomeoClientProfile(
 			user: accountyin2,
@@ -489,6 +489,7 @@ class BootStrap {
 			profile: completeProfile
 		).save(failOnError: true, flash: true)
 
+		// katrina profile
                 def accountkatrina = User.findByUsername('katrina')
                 if (accountkatrina) {
                 log.info   'katrina profiles'
@@ -502,7 +503,34 @@ class BootStrap {
 			profile: DDIProfile
 		).save(failOnError: true, flash: true)
 		}
+
+		// amy profile
+                def accountamygrizzle = User.findByUsername('amygrizzle')
+                if (accountamygrizzle) {
+		
+                log.info   'amygrizzle profiles'
+                # UserAvailableDomeoClientProfile.findByUserAndProfile(accountamygrizzle, SPLProfile)?: new UserAvailableDomeoClientProfile(
+		# 	user: accountamygrizzle,
+		# 	profile: SPLProfile
+		# ).save(failOnError: true, flash: true) 
+
+		UserAvailableDomeoClientProfile.findByUserAndProfile(accountamygrizzle, DDIProfile)?: new UserAvailableDomeoClientProfile(
+			user: accountamygrizzle,
+			profile: DDIProfile
+		).save(failOnError: true, flash: true)
+		}
                 
+		// pgxconsensus profile
+                def accountpgxconsensus = User.findByUsername('pgxconsensus')
+                if (accountpgxconsensus) {
+		
+                log.info   'pgxconsensus profiles'
+                UserAvailableDomeoClientProfile.findByUserAndProfile(accountpgxconsensus, SPLProfile)?: new UserAvailableDomeoClientProfile(
+			user: accountpgxconsensus,
+			profile: SPLProfile
+		).save(failOnError: true, flash: true) }
+
+
 
                 def accountphilp = User.findByUsername('philempey')
                 if (accountphilp) {
@@ -512,14 +540,6 @@ class BootStrap {
 			profile: SPLProfile
 		).save(failOnError: true, flash: true)
                 }
-
-                def accountpgxconsensus = User.findByUsername('pgxconsensus')
-                if (accountpgxconsensus) {
-                log.info   'pgxconsensus profiles'
-                UserAvailableDomeoClientProfile.findByUserAndProfile(accountpgxconsensus, SPLProfile)?: new UserAvailableDomeoClientProfile(
-			user: accountpgxconsensus,
-			profile: SPLProfile
-		).save(failOnError: true, flash: true) }
 
                 def accountharry = User.findByUsername('harry')
                 if (accountharry) {
