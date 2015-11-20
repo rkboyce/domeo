@@ -509,10 +509,10 @@ class BootStrap {
                 if (accountamygrizzle) {
 		
                 log.info   'amygrizzle profiles'
-                # UserAvailableDomeoClientProfile.findByUserAndProfile(accountamygrizzle, SPLProfile)?: new UserAvailableDomeoClientProfile(
-		# 	user: accountamygrizzle,
-		# 	profile: SPLProfile
-		# ).save(failOnError: true, flash: true) 
+                // UserAvailableDomeoClientProfile.findByUserAndProfile(accountamygrizzle, SPLProfile)?: new UserAvailableDomeoClientProfile(
+		// 	user: accountamygrizzle,
+		// 	profile: SPLProfile
+		// ).save(failOnError: true, flash: true) 
 
 		UserAvailableDomeoClientProfile.findByUserAndProfile(accountamygrizzle, DDIProfile)?: new UserAvailableDomeoClientProfile(
 			user: accountamygrizzle,
